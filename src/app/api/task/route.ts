@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import fs from 'fs/promises';
 import { NextRequest, NextResponse } from 'next/server';
-import { readLocalStatus, syncStatusToSupabase } from '@/lib/workplace';
+import { syncStatusToSupabase } from '@/lib/workplace';
+import { refreshStructuredStatus } from '@/lib/workplace-sync';
 
 const DIARIO_PATH = '/Users/jarvis/DIARIO.md';
 
@@ -38,7 +39,7 @@ async function appendTask(frente: string, tarea: string) {
 export async function POST(req: NextRequest) {
   const { frente, tarea } = await req.json();
   await appendTask(frente || 'General', tarea || 'Tarea sin detalle');
-  const status = await readLocalStatus();
+  const status = await refreshStructuredStatus();
   const error = await syncStatusToSupabase(status);
-  return NextResponse.json({ ok: true, syncError: error?.message ?? null });
+  return NextResponse.json({ ok: true, syncError: error?.message ?? null, status });
 }

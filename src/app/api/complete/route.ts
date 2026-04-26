@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import fs from 'fs/promises';
 import { NextRequest, NextResponse } from 'next/server';
-import { readLocalStatus, syncStatusToSupabase } from '@/lib/workplace';
+import { syncStatusToSupabase } from '@/lib/workplace';
+import { refreshStructuredStatus } from '@/lib/workplace-sync';
 
 const DIARIO_PATH = '/Users/jarvis/DIARIO.md';
 
@@ -39,7 +40,7 @@ async function completeTask(frente: string) {
 export async function POST(req: NextRequest) {
   const { frente } = await req.json();
   const ok = await completeTask(frente || 'General');
-  const status = await readLocalStatus();
+  const status = await refreshStructuredStatus();
   const error = await syncStatusToSupabase(status);
-  return NextResponse.json({ ok, syncError: error?.message ?? null }, { status: ok ? 200 : 404 });
+  return NextResponse.json({ ok, syncError: error?.message ?? null, status }, { status: ok ? 200 : 404 });
 }

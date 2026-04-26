@@ -1,9 +1,9 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { getMergedStatus } from '@/lib/workplace';
+import { refreshStructuredStatus } from '@/lib/workplace-sync';
 
 export async function GET() {
-  const status = await getMergedStatus();
+  const status = await refreshStructuredStatus();
   return NextResponse.json(status);
 }
