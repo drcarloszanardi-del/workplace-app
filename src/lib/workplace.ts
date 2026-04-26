@@ -91,13 +91,20 @@ function summarizeProject(project: any, fallback: string) {
 }
 
 async function readProjectCards(): Promise<ProjectCard[]> {
-  const entries = await fs.readdir(projectsRoot, { withFileTypes: true });
-  const dirs = entries
-    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
-    .map((entry) => entry.name)
-    .sort();
+  const preferred = ['obracash', 'papers-cientificos', 'project-1776699923524', 'reel-cirugia-columna-001', 'clinica', 'inversiones', 'inmobiliaria', 'finanzas', 'jarvis-ui'];
+  let dirs: string[] = [];
+
+  try {
+    const entries = await fs.readdir(projectsRoot, { withFileTypes: true });
+    dirs = entries
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+      .map((entry) => entry.name)
+      .sort();
+  } catch {}
+
+  const mergedDirs = [...new Set([...preferred, ...dirs])];
   const cards = await Promise.all(
-    dirs.map(async (folder) => {
+    mergedDirs.map(async (folder) => {
       const readmePath = `${projectsRoot}/${folder}/README.md`;
       const projectJsonPath = `${projectsRoot}/${folder}/project.json`;
       try {
