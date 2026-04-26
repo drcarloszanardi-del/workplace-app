@@ -1,19 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs/promises';
-import { defaultStatus } from '@/lib/default-status';
 import type { WorkplaceStatus } from '@/lib/workplace-types';
 
 export const statusPath = '/Users/jarvis/workplace/status.json';
+const workspaceRoot = '/Users/jarvis/.openclaw/workspace';
+const projectsRoot = `${workspaceRoot}/workplace/projects`;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ieznwnrhbroiaobheoan.supabase.co';
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
+type ProjectCard = {
+  key: string;
+  nombre: string;
+  descripcion: string;
+  folder: string;
+};
 
 export async function readLocalStatus(): Promise<WorkplaceStatus> {
   try {
     const raw = await fs.readFile(statusPath, 'utf8');
     return JSON.parse(raw) as WorkplaceStatus;
   } catch {
-    return defaultStatus;
+    return { lastHeartbeat: '', frentes: {} };
   }
 }
 
@@ -51,83 +58,81 @@ export async function syncStatusToSupabase(status: WorkplaceStatus) {
   }
 }
 
-function mapState(raw: string): 'verde' | 'amarillo' | 'rojo' {
-  const value = raw.toLowerCase();
-  if (value.includes('bloque') || value.includes('trab') || value.includes('error')) return 'rojo';
-  if (value.includes('activo') || value.includes('curso') || value.includes('listo') || value.includes('desde ahora')) return 'verde';
-  return 'amarillo';
+function folderToTitle(folder: string) {
+  return folder
+    .replace(/^project-\d+$/, 'Tesis')
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function parsePendientes(content: string): WorkplaceStatus {
-  const lines = content.split('\n');
-  const lastUpdateLine = lines.find((line) => line.startsWith('Última actualización:')) || '';
-  const lastHeartbeat = lastUpdateLine.replace('Última actualización:', '').trim();
-  const defaults = { ...defaultStatus.frentes };
+async function readProjectCards(): Promise<ProjectCard[]> {
+  const entries = await fs.readdir(projectsRoot, { withFileTypes: true });
+  const dirs = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+  const cards = await Promise.all(
+    dirs.map(async (folder) => {
+      const readmePath = `${projectsRoot}/${folder}/README.md`;
+      try {
+        const content = await fs.readFile(readmePath, 'utf8');
+        const lines = content.split('\n').map((line) => line.trim());
+        const heading = lines.find((line) => line.startsWith('# '))?.replace(/^#\s+/, '').trim() || folderToTitle(folder);
+        const descripcion =
+          lines.find((line) => line.startsWith('## Descripción'))
+            ? lines[lines.findIndex((line) => line.startsWith('## Descripción')) + 1]?.trim() || ''
+            : lines.find((line) => line && !line.startsWith('#') && !line.startsWith('-') && !line.startsWith('##')) || '';
+        return {
+          key: folder,
+          nombre: heading,
+          descripcion: descripcion || `Proyecto ${folder}`,
+          folder,
+        };
+      } catch {
+        return {
+          key: folder,
+          nombre: folderToTitle(folder),
+          descripcion: `Proyecto ${folder}`,
+          folder,
+        };
+      }
+    }),
+  );
+  return cards;
+}
+
+async function getLastUpdateStamp() {
+  try {
+    const stat = await fs.stat(`${workspaceRoot}/PENDIENTES_ZANARDI.md`);
+    return new Date(stat.mtime).toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
+async function buildTopicsStatus(): Promise<WorkplaceStatus> {
+  const cards = await readProjectCards();
+  const lastHeartbeat = await getLastUpdateStamp();
   const frentes: WorkplaceStatus['frentes'] = {};
 
-  const blocks = content.split(/^###\s+/m).slice(1);
-  for (const block of blocks) {
-    const rows = block.split('\n').filter(Boolean);
-    const title = rows[0]?.replace(/^\d+\.\s*/, '').trim();
-    if (!title) continue;
-
-    const estado = rows.find((row) => row.startsWith('- Estado:'))?.replace('- Estado:', '').trim() || 'pendiente';
-    const objetivo = rows.find((row) => row.startsWith('- Objetivo:'))?.replace('- Objetivo:', '').trim() || '';
-    const proximo = rows.find((row) => row.startsWith('- Próximo paso:'))?.replace('- Próximo paso:', '').trim() || '';
-    const deadline = rows.find((row) => row.startsWith('- Deadline:'))?.replace('- Deadline:', '').trim() || '';
-    const criterio = rows.find((row) => row.startsWith('- Criterio de terminado:'))?.replace('- Criterio de terminado:', '').trim() || '';
-
-    const normalizedTitle = title.toLowerCase();
-    const matchKey = Object.keys(defaults).find((key) => {
-      const current = defaults[key];
-      return current.nombre.toLowerCase().includes(normalizedTitle) || normalizedTitle.includes(current.nombre.toLowerCase());
-    });
-
-    if (matchKey) {
-      frentes[matchKey] = {
-        ...defaults[matchKey],
-        estado: mapState(estado),
-        ultimoAvance: estado.charAt(0).toUpperCase() + estado.slice(1),
-        fechaAvance: lastHeartbeat,
-        proximaTarea: proximo || objetivo || defaults[matchKey].proximaTarea,
-        extra: [defaults[matchKey].extra || '', deadline ? `Deadline: ${deadline}` : '', criterio ? `Terminado cuando: ${criterio}` : '']
-          .filter(Boolean)
-          .join(' | '),
-      };
-      delete defaults[matchKey];
-      continue;
-    }
-
-    const key = title
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_|_$/g, '');
-
-    frentes[key] = {
-      nombre: title,
-      estado: mapState(estado),
-      ultimoAvance: estado.charAt(0).toUpperCase() + estado.slice(1),
+  for (const card of cards) {
+    frentes[card.key] = {
+      nombre: card.nombre,
+      estado: 'verde',
+      ultimoAvance: 'Topic visible en Workplace',
       fechaAvance: lastHeartbeat,
-      proximaTarea: proximo || objetivo || 'Sin próxima tarea definida',
+      proximaTarea: 'Abrir detalle y continuar trabajo del frente',
       necesitaDelUsuario: '',
-      extra: [deadline ? `Deadline: ${deadline}` : '', criterio ? `Terminado cuando: ${criterio}` : ''].filter(Boolean).join(' | '),
+      extra: `Carpeta: workplace/projects/${card.folder}${card.descripcion ? ` | ${card.descripcion}` : ''}`,
     };
   }
 
-  return {
-    lastHeartbeat,
-    frentes: { ...frentes, ...defaults },
-  };
+  return { lastHeartbeat, frentes };
 }
 
 export async function getMergedStatus() {
   const remote = await readRemoteStatus();
-  if (remote) return remote;
+  if (remote && Object.keys(remote.frentes || {}).length > 0) return remote;
   try {
-    const pendientes = await fs.readFile('/Users/jarvis/.openclaw/workspace/PENDIENTES_ZANARDI.md', 'utf8');
-    return parsePendientes(pendientes);
-  } catch {}
-  return readLocalStatus();
+    return await buildTopicsStatus();
+  } catch {
+    return readLocalStatus();
+  }
 }
