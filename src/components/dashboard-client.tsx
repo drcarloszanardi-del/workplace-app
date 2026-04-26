@@ -41,9 +41,12 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
 
   useEffect(() => {
     const interval = window.setInterval(async () => {
-      const res = await fetch('/api/status');
-      const next = await res.json();
-      setStatus(next);
+      try {
+        const res = await fetch('/api/status');
+        if (!res.ok) return;
+        const next = await res.json();
+        setStatus(next);
+      } catch {}
     }, 15000);
     return () => window.clearInterval(interval);
   }, []);
@@ -57,36 +60,69 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
 
   async function sendMessage() {
     if (!message.trim()) return;
-    await fetch('/api/message', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: message.trim() }),
-    });
-    setMessage('');
+    try {
+      const res = await fetch('/api/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: message.trim() }),
+      });
+      if (!res.ok) {
+        alert('Mensajería no disponible en este deploy.');
+        return;
+      }
+      setMessage('');
+    } catch {
+      alert('Mensajería no disponible en este deploy.');
+    }
   }
 
   async function addTask(frente: string) {
     const tarea = taskInputs[frente]?.trim();
     if (!tarea) return;
-    await fetch('/api/task', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ frente, tarea }),
-    });
-    setTaskInputs((prev) => ({ ...prev, [frente]: '' }));
-    setOpenTask(null);
+    try {
+      const res = await fetch('/api/task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frente, tarea }),
+      });
+      if (!res.ok) {
+        alert('Alta de tareas no disponible en este deploy.');
+        return;
+      }
+      setTaskInputs((prev) => ({ ...prev, [frente]: '' }));
+      setOpenTask(null);
+    } catch {
+      alert('Alta de tareas no disponible en este deploy.');
+    }
   }
 
   async function forceHeartbeat() {
-    await fetch('/api/heartbeat', { method: 'POST' });
-    const res = await fetch('/api/status');
-    setStatus(await res.json());
+    try {
+      const beat = await fetch('/api/heartbeat', { method: 'POST' });
+      if (!beat.ok) {
+        alert('Heartbeat remoto no disponible en este deploy.');
+        return;
+      }
+      const res = await fetch('/api/status');
+      if (!res.ok) return;
+      setStatus(await res.json());
+    } catch {
+      alert('Heartbeat remoto no disponible en este deploy.');
+    }
   }
 
   async function viewDetail(frente: string) {
-    const res = await fetch(`/api/detail?frente=${encodeURIComponent(frente)}`);
-    const data = await res.json();
-    alert(data.file || 'No encontré un archivo para este frente todavía.');
+    try {
+      const res = await fetch(`/api/detail?frente=${encodeURIComponent(frente)}`);
+      if (!res.ok) {
+        alert('Detalle local no disponible en este deploy.');
+        return;
+      }
+      const data = await res.json();
+      alert(data.file || 'No encontré un archivo para este frente todavía.');
+    } catch {
+      alert('Detalle local no disponible en este deploy.');
+    }
   }
 
   return (
