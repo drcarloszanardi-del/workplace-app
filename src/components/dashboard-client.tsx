@@ -1,9 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import type { WorkplaceStatus } from '@/lib/workplace-types';
-import { supabase } from '@/lib/supabase';
 
 function parseDate(raw: string) {
   if (!raw) return null;
@@ -25,19 +23,10 @@ function ago(raw: string) {
 }
 
 export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceStatus }) {
-  const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
   const [message, setMessage] = useState('');
   const [taskInputs, setTaskInputs] = useState<Record<string, string>>({});
   const [openTask, setOpenTask] = useState<string | null>(null);
-
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) router.replace('/');
-    };
-    void checkSession();
-  }, [router]);
 
   useEffect(() => {
     const interval = window.setInterval(async () => {
