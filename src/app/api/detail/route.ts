@@ -75,9 +75,30 @@ const detailFallbacks: Record<string, { name: string; description: string; notes
 
 async function getProjectDetail(frente: string) {
   const projectPath = path.join(workspaceRoot, 'workplace', 'projects', frente, 'project.json');
+  const fallback = detailFallbacks[frente] || null;
+
   try {
     const raw = await fs.readFile(projectPath, 'utf8');
     const project = JSON.parse(raw);
+    if (fallback) {
+      return {
+        file: projectPath,
+        name: project?.name || fallback.name || frente,
+        description: project?.description || fallback.description || '',
+        notes: [
+          ...(Array.isArray(project?.notes) ? project.notes : []),
+          ...(fallback.activity?.length ? ['Fase actual:'] : []),
+          ...(fallback.activity || []).map((item) => `• ${item}`),
+          `Avance autónomo: ${fallback.activity?.length ? 'Sí' : 'No definido'}`,
+          `Necesito aprobación del señor Zanardi: ${fallback.needs?.length ? 'Sí' : 'No'}`,
+          ...(fallback.needs || []).map((item) => `• ${item}`),
+        ],
+        documents: Array.isArray(project?.documents) ? project.documents : fallback.documents,
+        messages: Array.isArray(project?.messages) ? project.messages.slice(-5) : fallback.messages,
+        reels: Array.isArray(project?.reels) ? project.reels : [],
+      };
+    }
+
     return {
       file: projectPath,
       name: project?.name || frente,
@@ -90,7 +111,6 @@ async function getProjectDetail(frente: string) {
   } catch {
     const remote = await readRemoteStatus().catch(() => null);
     const remoteName = remote?.frentes?.[frente]?.nombre || '';
-    const fallback = detailFallbacks[frente] || null;
     if (fallback) {
       return {
         file: '',
@@ -98,9 +118,10 @@ async function getProjectDetail(frente: string) {
         description: fallback.description,
         notes: [
           ...fallback.notes,
-          ...(fallback.activity?.length ? ['Actividad actual:'] : []),
+          ...(fallback.activity?.length ? ['Fase actual:'] : []),
           ...(fallback.activity || []).map((item) => `• ${item}`),
-          ...(fallback.needs?.length ? ['Necesita del señor Zanardi:'] : []),
+          `Avance autónomo: ${fallback.activity?.length ? 'Sí' : 'No definido'}`,
+          `Necesito aprobación del señor Zanardi: ${fallback.needs?.length ? 'Sí' : 'No'}`,
           ...(fallback.needs || []).map((item) => `• ${item}`),
         ],
         documents: fallback.documents,
