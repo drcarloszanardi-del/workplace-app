@@ -232,13 +232,13 @@ async function buildTopicsStatus(): Promise<WorkplaceStatus> {
 
 export async function getMergedStatus() {
   try {
-    const topics = await buildTopicsStatus();
-    if (Object.keys(topics.frentes || {}).length > 0) return topics;
+    const remote = await readRemoteStatus();
+    if (remote && Object.keys(remote.frentes || {}).length > 0) return remote;
   } catch {}
 
   try {
-    const remote = await readRemoteStatus();
-    if (remote && Object.keys(remote.frentes || {}).length > 0) return remote;
+    const topics = await buildTopicsStatus();
+    if (Object.keys(topics.frentes || {}).length > 0) return topics;
   } catch {}
 
   try {
