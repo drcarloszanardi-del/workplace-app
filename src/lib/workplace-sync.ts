@@ -9,6 +9,10 @@ export async function refreshStructuredStatus() {
     ...merged,
     frentes: merged.frentes,
   };
-  await fs.writeFile(statusPath, JSON.stringify(next, null, 2) + '\n', 'utf8');
+
+  try {
+    await fs.writeFile(statusPath, JSON.stringify(next, null, 2) + '\n', 'utf8');
+  } catch {}
+
   return next;
 }
