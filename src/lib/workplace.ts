@@ -62,6 +62,7 @@ function parsePendientes(content: string): WorkplaceStatus {
   const lines = content.split('\n');
   const lastUpdateLine = lines.find((line) => line.startsWith('Última actualización:')) || '';
   const lastHeartbeat = lastUpdateLine.replace('Última actualización:', '').trim();
+  const defaults = { ...defaultStatus.frentes };
   const frentes: WorkplaceStatus['frentes'] = {};
 
   const blocks = content.split(/^###\s+/m).slice(1);
@@ -75,6 +76,27 @@ function parsePendientes(content: string): WorkplaceStatus {
     const proximo = rows.find((row) => row.startsWith('- Próximo paso:'))?.replace('- Próximo paso:', '').trim() || '';
     const deadline = rows.find((row) => row.startsWith('- Deadline:'))?.replace('- Deadline:', '').trim() || '';
     const criterio = rows.find((row) => row.startsWith('- Criterio de terminado:'))?.replace('- Criterio de terminado:', '').trim() || '';
+
+    const normalizedTitle = title.toLowerCase();
+    const matchKey = Object.keys(defaults).find((key) => {
+      const current = defaults[key];
+      return current.nombre.toLowerCase().includes(normalizedTitle) || normalizedTitle.includes(current.nombre.toLowerCase());
+    });
+
+    if (matchKey) {
+      frentes[matchKey] = {
+        ...defaults[matchKey],
+        estado: mapState(estado),
+        ultimoAvance: estado.charAt(0).toUpperCase() + estado.slice(1),
+        fechaAvance: lastHeartbeat,
+        proximaTarea: proximo || objetivo || defaults[matchKey].proximaTarea,
+        extra: [defaults[matchKey].extra || '', deadline ? `Deadline: ${deadline}` : '', criterio ? `Terminado cuando: ${criterio}` : '']
+          .filter(Boolean)
+          .join(' | '),
+      };
+      delete defaults[matchKey];
+      continue;
+    }
 
     const key = title
       .toLowerCase()
@@ -96,7 +118,7 @@ function parsePendientes(content: string): WorkplaceStatus {
 
   return {
     lastHeartbeat,
-    frentes: Object.keys(frentes).length ? frentes : defaultStatus.frentes,
+    frentes: { ...frentes, ...defaults },
   };
 }
 
