@@ -128,11 +128,13 @@ async function buildTopicsStatus(): Promise<WorkplaceStatus> {
 }
 
 export async function getMergedStatus() {
+  try {
+    const topics = await buildTopicsStatus();
+    if (Object.keys(topics.frentes || {}).length > 0) return topics;
+  } catch {}
+
   const remote = await readRemoteStatus();
   if (remote && Object.keys(remote.frentes || {}).length > 0) return remote;
-  try {
-    return await buildTopicsStatus();
-  } catch {
-    return readLocalStatus();
-  }
+
+  return readLocalStatus();
 }
