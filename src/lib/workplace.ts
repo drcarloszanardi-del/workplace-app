@@ -13,6 +13,11 @@ type ProjectCard = {
   nombre: string;
   descripcion: string;
   folder: string;
+  estado?: 'verde' | 'amarillo' | 'rojo';
+  ultimoAvance?: string;
+  proximaTarea?: string;
+  necesitaDelUsuario?: string;
+  extra?: string;
 };
 
 export async function readLocalStatus(): Promise<WorkplaceStatus> {
@@ -71,19 +76,44 @@ async function readProjectCards(): Promise<ProjectCard[]> {
   const cards = await Promise.all(
     dirs.map(async (folder) => {
       const readmePath = `${projectsRoot}/${folder}/README.md`;
+      const projectJsonPath = `${projectsRoot}/${folder}/project.json`;
       try {
-        const content = await fs.readFile(readmePath, 'utf8');
-        const lines = content.split('\n').map((line) => line.trim());
-        const heading = lines.find((line) => line.startsWith('# '))?.replace(/^#\s+/, '').trim() || folderToTitle(folder);
-        const descripcion =
+        const [readmeContent, projectRaw] = await Promise.all([
+          fs.readFile(readmePath, 'utf8').catch(() => ''),
+          fs.readFile(projectJsonPath, 'utf8').catch(() => ''),
+        ]);
+
+        const lines = readmeContent.split('\n').map((line) => line.trim());
+        const headingFromReadme = lines.find((line) => line.startsWith('# '))?.replace(/^#\s+/, '').trim() || '';
+        const descripcionFromReadme =
           lines.find((line) => line.startsWith('## Descripción'))
             ? lines[lines.findIndex((line) => line.startsWith('## Descripción')) + 1]?.trim() || ''
             : lines.find((line) => line && !line.startsWith('#') && !line.startsWith('-') && !line.startsWith('##')) || '';
+
+        let project: any = null;
+        try {
+          project = projectRaw ? JSON.parse(projectRaw) : null;
+        } catch {}
+
+        const notes = Array.isArray(project?.notes) ? project.notes.filter(Boolean) : [];
+        const messages = Array.isArray(project?.messages) ? project.messages : [];
+        const lastAssistant = [...messages].reverse().find((m) => m?.text)?.text || '';
+        const pendingNote = notes.find((n: string) => /pend|definir|revis|pedir|agregar|mantener/i.test(n)) || '';
+
         return {
-          key: folder,
-          nombre: heading,
-          descripcion: descripcion || `Proyecto ${folder}`,
+          key: project?.id || folder,
+          nombre: project?.name || headingFromReadme || folderToTitle(folder),
+          descripcion: project?.description || descripcionFromReadme || `Proyecto ${folder}`,
           folder,
+          estado: (messages.length > 0 ? 'verde' : 'amarillo') as 'verde' | 'amarillo',
+          ultimoAvance: lastAssistant || project?.description || descripcionFromReadme || `Proyecto ${folder}`,
+          proximaTarea: pendingNote || 'Abrir detalle y continuar trabajo del frente',
+          necesitaDelUsuario: '',
+          extra: [
+            project?.documents?.length ? `${project.documents.length} documento(s)` : '',
+            project?.reels?.length ? `${project.reels.length} reel(es)` : '',
+            folder ? `Carpeta: ${folder}` : '',
+          ].filter(Boolean).join(' | '),
         };
       } catch {
         return {
@@ -91,6 +121,11 @@ async function readProjectCards(): Promise<ProjectCard[]> {
           nombre: folderToTitle(folder),
           descripcion: `Proyecto ${folder}`,
           folder,
+          estado: 'amarillo' as 'amarillo',
+          ultimoAvance: `Proyecto ${folder}`,
+          proximaTarea: 'Abrir detalle y continuar trabajo del frente',
+          necesitaDelUsuario: '',
+          extra: `Carpeta: ${folder}`,
         };
       }
     }),
@@ -160,12 +195,12 @@ async function buildTopicsStatus(): Promise<WorkplaceStatus> {
   for (const card of cards) {
     frentes[card.key] = {
       nombre: card.nombre,
-      estado: 'verde',
-      ultimoAvance: 'Topic visible en Workplace',
+      estado: card.estado || 'verde',
+      ultimoAvance: card.ultimoAvance || 'Topic visible en Workplace',
       fechaAvance: lastHeartbeat,
-      proximaTarea: 'Abrir detalle y continuar trabajo del frente',
-      necesitaDelUsuario: '',
-      extra: `Carpeta: workplace/projects/${card.folder}${card.descripcion ? ` | ${card.descripcion}` : ''}`,
+      proximaTarea: card.proximaTarea || 'Abrir detalle y continuar trabajo del frente',
+      necesitaDelUsuario: card.necesitaDelUsuario || '',
+      extra: [card.descripcion, card.extra].filter(Boolean).join(' | '),
     };
   }
 
