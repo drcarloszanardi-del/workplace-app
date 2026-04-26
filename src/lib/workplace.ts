@@ -112,14 +112,41 @@ function fallbackStatus(): WorkplaceStatus {
   return {
     lastHeartbeat: now,
     frentes: {
-      workplace: {
-        nombre: 'Workplace',
+      papers: {
+        nombre: 'Papers',
         estado: 'amarillo',
-        ultimoAvance: 'Fuente local no disponible en este deploy.',
+        ultimoAvance: 'Pendiente conectar fuente productiva de datos.',
         fechaAvance: now,
-        proximaTarea: 'Conectar WORKPLACE_SOURCE_ROOT o usar una fuente remota válida.',
+        proximaTarea: 'Vincular estado vivo desde Supabase o dataset deployable.',
         necesitaDelUsuario: '',
-        extra: 'Deploy activo, pendiente fuente de datos.',
+        extra: 'Frente estratégico del señor Zanardi.',
+      },
+      obras: {
+        nombre: 'Obras',
+        estado: 'amarillo',
+        ultimoAvance: 'Pendiente conectar fuente productiva de datos.',
+        fechaAvance: now,
+        proximaTarea: 'Vincular estado vivo desde Supabase o dataset deployable.',
+        necesitaDelUsuario: '',
+        extra: 'Costa Verde, Gandini, Brasil.',
+      },
+      flipping: {
+        nombre: 'Flipping',
+        estado: 'amarillo',
+        ultimoAvance: 'Pendiente conectar fuente productiva de datos.',
+        fechaAvance: now,
+        proximaTarea: 'Vincular estado vivo desde Supabase o dataset deployable.',
+        necesitaDelUsuario: '',
+        extra: 'Radar inmobiliario y evaluación de oportunidades.',
+      },
+      reels: {
+        nombre: 'Reels',
+        estado: 'amarillo',
+        ultimoAvance: 'Pendiente conectar fuente productiva de datos.',
+        fechaAvance: now,
+        proximaTarea: 'Vincular estado vivo desde Supabase o dataset deployable.',
+        necesitaDelUsuario: '',
+        extra: 'Contenido médico diario.',
       },
     },
   };
