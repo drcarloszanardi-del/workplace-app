@@ -1,29 +1,32 @@
 export const dynamic = 'force-dynamic';
 
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
 
-function getLastFrontFile(frente: string) {
-  const candidates = [
-    `/Users/jarvis/.openclaw/workspace/reports/${frente}`,
-    `/Users/jarvis/.openclaw/workspace/workplace/projects/${frente}`,
-    `/Users/jarvis/.openclaw/workspace/workplace`,
-  ];
-  for (const dir of candidates) {
-    if (!fs.existsSync(dir)) continue;
-    const files = fs
-      .readdirSync(dir)
-      .map((name) => ({ name, full: path.join(dir, name) }))
-      .filter((entry) => fs.statSync(entry.full).isFile())
-      .sort((a, b) => fs.statSync(b.full).mtimeMs - fs.statSync(a.full).mtimeMs);
-    if (files[0]) return files[0].full;
+const workspaceRoot = process.env.WORKPLACE_SOURCE_ROOT || '/Users/jarvis/.openclaw/workspace';
+
+async function getProjectDetail(frente: string) {
+  const projectPath = path.join(workspaceRoot, 'workplace', 'projects', frente, 'project.json');
+  try {
+    const raw = await fs.readFile(projectPath, 'utf8');
+    const project = JSON.parse(raw);
+    return {
+      file: projectPath,
+      name: project?.name || frente,
+      description: project?.description || '',
+      notes: Array.isArray(project?.notes) ? project.notes : [],
+      documents: Array.isArray(project?.documents) ? project.documents : [],
+      messages: Array.isArray(project?.messages) ? project.messages.slice(-5) : [],
+      reels: Array.isArray(project?.reels) ? project.reels : [],
+    };
+  } catch {
+    return { file: '', name: frente, description: '', notes: [], documents: [], messages: [], reels: [] };
   }
-  return '';
 }
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const frente = searchParams.get('frente') || '';
-  return NextResponse.json({ file: getLastFrontFile(frente) });
+  return NextResponse.json(await getProjectDetail(frente));
 }

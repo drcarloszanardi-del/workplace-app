@@ -1,6 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+
+type ProjectDetail = {
+  file: string;
+  name: string;
+  description: string;
+  notes: string[];
+  documents: { name: string; uploadedAt?: string }[];
+  messages: { role?: string; text?: string; time?: string }[];
+  reels: { createdAt?: string }[];
+};
 import type { WorkplaceStatus } from '@/lib/workplace-types';
 
 function parseDate(raw: string) {
@@ -27,6 +37,7 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
   const [message, setMessage] = useState('');
   const [taskInputs, setTaskInputs] = useState<Record<string, string>>({});
   const [openTask, setOpenTask] = useState<string | null>(null);
+  const [detail, setDetail] = useState<ProjectDetail | null>(null);
 
   useEffect(() => {
     const interval = window.setInterval(async () => {
@@ -108,7 +119,7 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
         return;
       }
       const data = await res.json();
-      alert(data.file || 'No encontré un archivo para este frente todavía.');
+      setDetail(data);
     } catch {
       alert('Detalle local no disponible en este deploy.');
     }
@@ -135,7 +146,7 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
           </div>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Object.entries(status.frentes).map(([key, frente]) => {
             const color = frente.estado === 'verde' ? 'border-l-[#1D9E75]' : frente.estado === 'rojo' ? 'border-l-red-500' : 'border-l-[#EF9F27]';
             const badge = frente.estado === 'verde' ? 'bg-[#1D9E75]/15 text-[#1D9E75]' : frente.estado === 'rojo' ? 'bg-red-500/15 text-red-300' : 'bg-[#EF9F27]/15 text-[#EF9F27]';
@@ -180,6 +191,32 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
             );
           })}
         </section>
+
+        {detail ? (
+          <section className="rounded-2xl border border-[#0f3460] bg-[#16213e] p-5">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-semibold">{detail.name}</h2>
+                {detail.description ? <p className="mt-1 text-sm text-[#a0a0a0]">{detail.description}</p> : null}
+              </div>
+              <button onClick={() => setDetail(null)} className="rounded-full border border-[#0f3460] bg-[#0f1a31] px-3 py-2 text-sm">cerrar</button>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div>
+                <div className="mb-2 text-sm text-[#a0a0a0]">Notas</div>
+                <ul className="space-y-2 text-sm">{detail.notes.length ? detail.notes.map((n, i) => <li key={i}>• {n}</li>) : <li>Sin notas</li>}</ul>
+              </div>
+              <div>
+                <div className="mb-2 text-sm text-[#a0a0a0]">Documentos</div>
+                <ul className="space-y-2 text-sm">{detail.documents.length ? detail.documents.map((d, i) => <li key={i}>• {d.name}{d.uploadedAt ? `, ${d.uploadedAt}` : ''}</li>) : <li>Sin documentos</li>}</ul>
+              </div>
+              <div>
+                <div className="mb-2 text-sm text-[#a0a0a0]">Mensajes recientes</div>
+                <ul className="space-y-2 text-sm">{detail.messages.length ? detail.messages.map((m, i) => <li key={i}>• {m.role || 'msg'}: {m.text || ''}</li>) : <li>Sin mensajes</li>}</ul>
+              </div>
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
   );

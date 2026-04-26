@@ -70,6 +70,26 @@ function folderToTitle(folder: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function summarizeProject(project: any, fallback: string) {
+  const messages = Array.isArray(project?.messages) ? project.messages : [];
+  const notes = Array.isArray(project?.notes) ? project.notes.filter(Boolean) : [];
+  const documents = Array.isArray(project?.documents) ? project.documents : [];
+  const reels = Array.isArray(project?.reels) ? project.reels : [];
+  const lastMessage = [...messages].reverse().find((m) => m?.text)?.text || '';
+  const pendingNote = notes.find((n: string) => /pend|definir|revis|pedir|agregar|mantener/i.test(n)) || '';
+
+  return {
+    estado: (messages.length > 0 || documents.length > 0 || reels.length > 0 ? 'verde' : 'amarillo') as 'verde' | 'amarillo',
+    ultimoAvance: lastMessage || fallback,
+    proximaTarea: pendingNote || 'Abrir detalle y continuar trabajo del frente',
+    extra: [
+      documents.length ? `${documents.length} documento(s)` : '',
+      reels.length ? `${reels.length} reel(es)` : '',
+      notes.length ? `${notes.length} nota(s)` : '',
+    ].filter(Boolean).join(' | '),
+  };
+}
+
 async function readProjectCards(): Promise<ProjectCard[]> {
   const entries = await fs.readdir(projectsRoot, { withFileTypes: true });
   const dirs = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
@@ -95,25 +115,18 @@ async function readProjectCards(): Promise<ProjectCard[]> {
           project = projectRaw ? JSON.parse(projectRaw) : null;
         } catch {}
 
-        const notes = Array.isArray(project?.notes) ? project.notes.filter(Boolean) : [];
-        const messages = Array.isArray(project?.messages) ? project.messages : [];
-        const lastAssistant = [...messages].reverse().find((m) => m?.text)?.text || '';
-        const pendingNote = notes.find((n: string) => /pend|definir|revis|pedir|agregar|mantener/i.test(n)) || '';
+        const summary = summarizeProject(project, project?.description || descripcionFromReadme || `Proyecto ${folder}`);
 
         return {
           key: project?.id || folder,
           nombre: project?.name || headingFromReadme || folderToTitle(folder),
           descripcion: project?.description || descripcionFromReadme || `Proyecto ${folder}`,
           folder,
-          estado: (messages.length > 0 ? 'verde' : 'amarillo') as 'verde' | 'amarillo',
-          ultimoAvance: lastAssistant || project?.description || descripcionFromReadme || `Proyecto ${folder}`,
-          proximaTarea: pendingNote || 'Abrir detalle y continuar trabajo del frente',
+          estado: summary.estado,
+          ultimoAvance: summary.ultimoAvance,
+          proximaTarea: summary.proximaTarea,
           necesitaDelUsuario: '',
-          extra: [
-            project?.documents?.length ? `${project.documents.length} documento(s)` : '',
-            project?.reels?.length ? `${project.reels.length} reel(es)` : '',
-            folder ? `Carpeta: ${folder}` : '',
-          ].filter(Boolean).join(' | '),
+          extra: [summary.extra, folder ? `Carpeta: ${folder}` : ''].filter(Boolean).join(' | '),
         };
       } catch {
         return {
@@ -147,41 +160,41 @@ function fallbackStatus(): WorkplaceStatus {
   return {
     lastHeartbeat: now,
     frentes: {
-      papers: {
-        nombre: 'Papers',
+      'jarvis-ui': {
+        nombre: 'Interfaz Jarvis',
         estado: 'amarillo',
-        ultimoAvance: 'Pendiente conectar fuente productiva de datos.',
+        ultimoAvance: 'Producción activa con dataset fallback.',
         fechaAvance: now,
-        proximaTarea: 'Vincular estado vivo desde Supabase o dataset deployable.',
+        proximaTarea: 'Completar vista por proyecto, detalle y persistencia.',
         necesitaDelUsuario: '',
-        extra: 'Frente estratégico del señor Zanardi.',
+        extra: 'UI del workplace en ajuste.',
       },
-      obras: {
-        nombre: 'Obras',
+      'project-1776699923524': {
+        nombre: 'Tesis Doctorado Carlos Zanardi',
         estado: 'amarillo',
-        ultimoAvance: 'Pendiente conectar fuente productiva de datos.',
+        ultimoAvance: 'Proyecto visible en producción.',
         fechaAvance: now,
-        proximaTarea: 'Vincular estado vivo desde Supabase o dataset deployable.',
+        proximaTarea: 'Agregar próximos pasos reales y documentos asociados.',
         necesitaDelUsuario: '',
-        extra: 'Costa Verde, Gandini, Brasil.',
+        extra: 'Frente académico prioritario.',
       },
-      flipping: {
-        nombre: 'Flipping',
+      inmobiliaria: {
+        nombre: 'Búsqueda inmobiliaria',
         estado: 'amarillo',
-        ultimoAvance: 'Pendiente conectar fuente productiva de datos.',
+        ultimoAvance: 'Proyecto visible en producción.',
         fechaAvance: now,
-        proximaTarea: 'Vincular estado vivo desde Supabase o dataset deployable.',
+        proximaTarea: 'Mostrar propiedades, correos y material asociado.',
         necesitaDelUsuario: '',
-        extra: 'Radar inmobiliario y evaluación de oportunidades.',
+        extra: 'Flipping y oportunidades.',
       },
-      reels: {
-        nombre: 'Reels',
+      'reel-cirugia-columna-001': {
+        nombre: 'Reel cirugía de columna 001',
         estado: 'amarillo',
-        ultimoAvance: 'Pendiente conectar fuente productiva de datos.',
+        ultimoAvance: 'Proyecto visible en producción.',
         fechaAvance: now,
-        proximaTarea: 'Vincular estado vivo desde Supabase o dataset deployable.',
+        proximaTarea: 'Mostrar assets, guión y plan de publicación.',
         necesitaDelUsuario: '',
-        extra: 'Contenido médico diario.',
+        extra: 'Contenido profesional médico.',
       },
     },
   };
