@@ -150,7 +150,7 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
           {Object.entries(status.frentes).map(([key, frente]) => {
             const color = frente.estado === 'verde' ? 'border-l-[#1D9E75]' : frente.estado === 'rojo' ? 'border-l-red-500' : 'border-l-[#EF9F27]';
             const badge = frente.estado === 'verde' ? 'bg-[#1D9E75]/15 text-[#1D9E75]' : frente.estado === 'rojo' ? 'bg-red-500/15 text-red-300' : 'bg-[#EF9F27]/15 text-[#EF9F27]';
-            const badgeText = frente.estado === 'verde' ? 'activo' : frente.estado === 'rojo' ? 'bloqueado' : 'en seguimiento';
+            const badgeText = frente.estado === 'verde' ? 'activo' : frente.estado === 'rojo' ? 'bloqueado' : 'esperando';
             return (
               <article key={key} className={`flex min-h-[290px] flex-col gap-4 rounded-2xl border border-[#0f3460] border-l-[3px] ${color} bg-[#16213e] p-5`}>
                 <div className="flex items-start justify-between gap-3">
