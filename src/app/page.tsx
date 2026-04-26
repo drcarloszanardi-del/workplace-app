@@ -2,53 +2,51 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { DashboardClient } from '@/components/dashboard-client';
 import { supabase } from '@/lib/supabase';
+import { defaultStatus } from '@/lib/default-status';
 
 export default function Home() {
-  const router = useRouter();
-  const redirectedRef = useRef(false);
   const [email, setEmail] = useState('test@obracash.com');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
     const syncSession = async () => {
       const { data } = await supabase.auth.getSession();
-      if (data.session && !redirectedRef.current) {
-        redirectedRef.current = true;
-        router.replace('/dashboard');
-      }
+      setLoggedIn(Boolean(data.session));
     };
 
     void syncSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session && ['SIGNED_IN', 'TOKEN_REFRESHED', 'INITIAL_SESSION'].includes(event) && !redirectedRef.current) {
-        redirectedRef.current = true;
-        window.setTimeout(() => {
-          router.push('/dashboard');
-        }, 300);
+      if (['SIGNED_IN', 'TOKEN_REFRESHED', 'INITIAL_SESSION', 'SIGNED_OUT'].includes(event)) {
+        setLoggedIn(Boolean(session));
       }
     });
 
     return () => listener.subscription.unsubscribe();
-  }, [router]);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    redirectedRef.current = false;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
       setMessage('Error: ' + error.message);
       return;
     }
-    setMessage('Login correcto. Redirigiendo...');
+    setMessage('Login correcto.');
+    setLoggedIn(true);
   };
+
+  if (loggedIn) {
+    return <DashboardClient initialStatus={defaultStatus} />;
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#1a1a2e] px-4 text-[#e0e0e0]">

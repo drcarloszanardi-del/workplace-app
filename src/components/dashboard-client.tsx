@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { WorkplaceStatus } from '@/lib/workplace';
+import type { WorkplaceStatus } from '@/lib/workplace-types';
 import { supabase } from '@/lib/supabase';
 
 function parseDate(raw: string) {
