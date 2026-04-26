@@ -92,7 +92,10 @@ function summarizeProject(project: any, fallback: string) {
 
 async function readProjectCards(): Promise<ProjectCard[]> {
   const entries = await fs.readdir(projectsRoot, { withFileTypes: true });
-  const dirs = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+  const dirs = entries
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+    .map((entry) => entry.name)
+    .sort();
   const cards = await Promise.all(
     dirs.map(async (folder) => {
       const readmePath = `${projectsRoot}/${folder}/README.md`;
