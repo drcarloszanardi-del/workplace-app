@@ -79,7 +79,7 @@ function summarizeProject(project: any, fallback: string) {
   const pendingNote = notes.find((n: string) => /pend|definir|revis|pedir|agregar|mantener/i.test(n)) || '';
 
   return {
-    estado: (messages.length > 0 || documents.length > 0 || reels.length > 0 ? 'verde' : 'amarillo') as 'verde' | 'amarillo',
+    estado: 'verde' as 'verde',
     ultimoAvance: lastMessage || fallback,
     proximaTarea: pendingNote || 'Abrir detalle y continuar trabajo del frente',
     extra: [
@@ -162,7 +162,7 @@ function fallbackStatus(): WorkplaceStatus {
     frentes: {
       'jarvis-ui': {
         nombre: 'Interfaz Jarvis',
-        estado: 'amarillo',
+        estado: 'verde',
         ultimoAvance: 'Producción activa con dataset fallback.',
         fechaAvance: now,
         proximaTarea: 'Completar vista por proyecto, detalle y persistencia.',
@@ -171,7 +171,7 @@ function fallbackStatus(): WorkplaceStatus {
       },
       'project-1776699923524': {
         nombre: 'Tesis Doctorado Carlos Zanardi',
-        estado: 'amarillo',
+        estado: 'verde',
         ultimoAvance: 'Proyecto visible en producción.',
         fechaAvance: now,
         proximaTarea: 'Agregar próximos pasos reales y documentos asociados.',
@@ -180,7 +180,7 @@ function fallbackStatus(): WorkplaceStatus {
       },
       inmobiliaria: {
         nombre: 'Búsqueda inmobiliaria',
-        estado: 'amarillo',
+        estado: 'verde',
         ultimoAvance: 'Proyecto visible en producción.',
         fechaAvance: now,
         proximaTarea: 'Mostrar propiedades, correos y material asociado.',
@@ -189,7 +189,7 @@ function fallbackStatus(): WorkplaceStatus {
       },
       'reel-cirugia-columna-001': {
         nombre: 'Reel cirugía de columna 001',
-        estado: 'amarillo',
+        estado: 'verde',
         ultimoAvance: 'Proyecto visible en producción.',
         fechaAvance: now,
         proximaTarea: 'Mostrar assets, guión y plan de publicación.',
