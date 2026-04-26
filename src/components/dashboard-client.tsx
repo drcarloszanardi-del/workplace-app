@@ -151,11 +151,21 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
             const color = frente.estado === 'verde' ? 'border-l-[#1D9E75]' : frente.estado === 'rojo' ? 'border-l-red-500' : 'border-l-[#EF9F27]';
             const badge = frente.estado === 'verde' ? 'bg-[#1D9E75]/15 text-[#1D9E75]' : frente.estado === 'rojo' ? 'bg-red-500/15 text-red-300' : 'bg-[#EF9F27]/15 text-[#EF9F27]';
             const badgeText = frente.estado === 'verde' ? 'activo' : frente.estado === 'rojo' ? 'bloqueado' : 'esperando';
+            const autonomia = frente.avanceAutonomo === 'si' ? 'Avance autónomo' : 'En espera';
+            const respuesta = frente.esperaRespuesta === 'si' ? 'Necesita su respuesta' : 'No necesita respuesta';
             return (
               <article key={key} className={`flex min-h-[290px] flex-col gap-4 rounded-2xl border border-[#0f3460] border-l-[3px] ${color} bg-[#16213e] p-5`}>
                 <div className="flex items-start justify-between gap-3">
                   <strong className="text-xl">{frente.nombre}</strong>
                   <span className={`rounded-full px-3 py-1 text-xs uppercase tracking-wide ${badge}`}>{badgeText}</span>
+                </div>
+                <div>
+                  <div className="text-sm text-[#a0a0a0]">Fase actual</div>
+                  <div className="mt-1 leading-relaxed">{frente.faseActual || 'Avance autónomo en curso'}</div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full border border-[#0f3460] bg-[#0f1a31] px-3 py-1">{autonomia}</span>
+                    <span className={`rounded-full border px-3 py-1 ${frente.esperaRespuesta === 'si' ? 'border-[#EF9F27] bg-[#EF9F27]/12 text-[#ffd089]' : 'border-[#0f3460] bg-[#0f1a31]'}`}>{respuesta}</span>
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm text-[#a0a0a0]">Último avance</div>
@@ -168,7 +178,7 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
                 </div>
                 {frente.necesitaDelUsuario ? (
                   <div className="rounded-xl border border-[#EF9F27]/35 bg-[#EF9F27]/12 px-3 py-2 text-sm text-[#ffd089]">
-                    Necesita: {frente.necesitaDelUsuario}
+                    Necesito del señor Zanardi: {frente.necesitaDelUsuario}
                   </div>
                 ) : null}
                 {frente.extra ? <div className="border-t border-dashed border-white/10 pt-3 text-sm text-[#a0a0a0]">{frente.extra}</div> : null}

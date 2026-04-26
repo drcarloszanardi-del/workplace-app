@@ -18,6 +18,9 @@ type ProjectCard = {
   proximaTarea?: string;
   necesitaDelUsuario?: string;
   extra?: string;
+  faseActual?: string;
+  avanceAutonomo?: 'si' | 'no';
+  esperaRespuesta?: 'si' | 'no';
 };
 
 export async function readLocalStatus(): Promise<WorkplaceStatus> {
@@ -78,10 +81,16 @@ function summarizeProject(project: any, fallback: string) {
   const lastMessage = [...messages].reverse().find((m) => m?.text)?.text || '';
   const pendingNote = notes.find((n: string) => /pend|definir|revis|pedir|agregar|mantener/i.test(n)) || '';
 
+  const necesita = notes.find((n: string) => /necesita|aprobaci|respuesta|validaci|contestar/i.test(n)) || '';
+
   return {
-    estado: 'verde' as 'verde',
+    estado: necesita ? ('amarillo' as 'amarillo') : ('verde' as 'verde'),
     ultimoAvance: lastMessage || fallback,
     proximaTarea: pendingNote || 'Abrir detalle y continuar trabajo del frente',
+    faseActual: necesita ? 'Esperando respuesta del señor Zanardi' : 'Avance autónomo en curso',
+    avanceAutonomo: necesita ? ('no' as 'no') : ('si' as 'si'),
+    esperaRespuesta: necesita ? ('si' as 'si') : ('no' as 'no'),
+    necesitaDelUsuario: necesita,
     extra: [
       documents.length ? `${documents.length} documento(s)` : '',
       reels.length ? `${reels.length} reel(es)` : '',
@@ -135,7 +144,10 @@ async function readProjectCards(): Promise<ProjectCard[]> {
           estado: summary.estado,
           ultimoAvance: summary.ultimoAvance,
           proximaTarea: summary.proximaTarea,
-          necesitaDelUsuario: '',
+          necesitaDelUsuario: summary.necesitaDelUsuario,
+          faseActual: summary.faseActual,
+          avanceAutonomo: summary.avanceAutonomo,
+          esperaRespuesta: summary.esperaRespuesta,
           extra: [summary.extra, folder ? `Carpeta: ${folder}` : ''].filter(Boolean).join(' | '),
         };
       } catch {
@@ -148,6 +160,9 @@ async function readProjectCards(): Promise<ProjectCard[]> {
           ultimoAvance: `Proyecto ${folder}`,
           proximaTarea: 'Abrir detalle y continuar trabajo del frente',
           necesitaDelUsuario: '',
+          faseActual: 'Avance autónomo en curso',
+          avanceAutonomo: 'si' as 'si',
+          esperaRespuesta: 'no' as 'no',
           extra: `Carpeta: ${folder}`,
         };
       }
@@ -177,6 +192,9 @@ function fallbackStatus(): WorkplaceStatus {
         fechaAvance: now,
         proximaTarea: 'Completar vista por proyecto, detalle y persistencia.',
         necesitaDelUsuario: '',
+        faseActual: 'Avance autónomo en curso',
+        avanceAutonomo: 'si',
+        esperaRespuesta: 'no',
         extra: 'UI del workplace en ajuste.',
       },
       'project-1776699923524': {
@@ -186,6 +204,9 @@ function fallbackStatus(): WorkplaceStatus {
         fechaAvance: now,
         proximaTarea: 'Agregar próximos pasos reales y documentos asociados.',
         necesitaDelUsuario: '',
+        faseActual: 'Avance autónomo en curso',
+        avanceAutonomo: 'si',
+        esperaRespuesta: 'no',
         extra: 'Frente académico prioritario.',
       },
       inmobiliaria: {
@@ -195,6 +216,9 @@ function fallbackStatus(): WorkplaceStatus {
         fechaAvance: now,
         proximaTarea: 'Mostrar propiedades, correos y material asociado.',
         necesitaDelUsuario: '',
+        faseActual: 'Avance autónomo en curso',
+        avanceAutonomo: 'si',
+        esperaRespuesta: 'no',
         extra: 'Flipping y oportunidades.',
       },
       'reel-cirugia-columna-001': {
@@ -204,6 +228,9 @@ function fallbackStatus(): WorkplaceStatus {
         fechaAvance: now,
         proximaTarea: 'Mostrar assets, guión y plan de publicación.',
         necesitaDelUsuario: '',
+        faseActual: 'Avance autónomo en curso',
+        avanceAutonomo: 'si',
+        esperaRespuesta: 'no',
         extra: 'Contenido profesional médico.',
       },
     },
@@ -223,6 +250,9 @@ async function buildTopicsStatus(): Promise<WorkplaceStatus> {
       fechaAvance: lastHeartbeat,
       proximaTarea: card.proximaTarea || 'Abrir detalle y continuar trabajo del frente',
       necesitaDelUsuario: card.necesitaDelUsuario || '',
+      faseActual: card.faseActual || 'Avance autónomo en curso',
+      avanceAutonomo: card.avanceAutonomo || 'si',
+      esperaRespuesta: card.esperaRespuesta || 'no',
       extra: [card.descripcion, card.extra].filter(Boolean).join(' | '),
     };
   }

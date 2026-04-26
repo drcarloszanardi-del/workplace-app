@@ -6,6 +6,9 @@ export type Frente = {
   proximaTarea: string;
   necesitaDelUsuario: string;
   extra?: string;
+  faseActual?: string;
+  avanceAutonomo?: 'si' | 'no';
+  esperaRespuesta?: 'si' | 'no';
 };
 
 export type WorkplaceStatus = {
