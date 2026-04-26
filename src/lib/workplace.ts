@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import type { WorkplaceStatus } from '@/lib/workplace-types';
 
 export const statusPath = '/Users/jarvis/workplace/status.json';
-const workspaceRoot = '/Users/jarvis/.openclaw/workspace';
+const workspaceRoot = process.env.WORKPLACE_SOURCE_ROOT || '/Users/jarvis/.openclaw/workspace';
 const projectsRoot = `${workspaceRoot}/workplace/projects`;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ieznwnrhbroiaobheoan.supabase.co';
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -107,6 +107,24 @@ async function getLastUpdateStamp() {
   }
 }
 
+function fallbackStatus(): WorkplaceStatus {
+  const now = new Date().toISOString();
+  return {
+    lastHeartbeat: now,
+    frentes: {
+      workplace: {
+        nombre: 'Workplace',
+        estado: 'amarillo',
+        ultimoAvance: 'Fuente local no disponible en este deploy.',
+        fechaAvance: now,
+        proximaTarea: 'Conectar WORKPLACE_SOURCE_ROOT o usar una fuente remota válida.',
+        necesitaDelUsuario: '',
+        extra: 'Deploy activo, pendiente fuente de datos.',
+      },
+    },
+  };
+}
+
 async function buildTopicsStatus(): Promise<WorkplaceStatus> {
   const cards = await readProjectCards();
   const lastHeartbeat = await getLastUpdateStamp();
@@ -133,8 +151,15 @@ export async function getMergedStatus() {
     if (Object.keys(topics.frentes || {}).length > 0) return topics;
   } catch {}
 
-  const remote = await readRemoteStatus();
-  if (remote && Object.keys(remote.frentes || {}).length > 0) return remote;
+  try {
+    const remote = await readRemoteStatus();
+    if (remote && Object.keys(remote.frentes || {}).length > 0) return remote;
+  } catch {}
 
-  return readLocalStatus();
+  try {
+    const local = await readLocalStatus();
+    if (local && Object.keys(local.frentes || {}).length > 0) return local;
+  } catch {}
+
+  return fallbackStatus();
 }
