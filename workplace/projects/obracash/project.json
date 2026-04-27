@@ -1,0 +1,23 @@
+{
+  "id": "obracash",
+  "name": "Jarvis obracash",
+  "description": "Operación técnica, mejoras y seguimiento de ObraCash.",
+  "color": "#16a34a",
+  "messages": [
+    {
+      "role": "assistant",
+      "text": "Proyecto activo para desarrollo, revisión y seguimiento de ObraCash.",
+      "time": "19:06"
+    }
+  ],
+  "documents": [
+    {
+      "name": "reports/obracash/obracash-mejoras-proactivas-2026-04-26-manana-2.md",
+      "uploadedAt": "2026-04-26 19:06"
+    }
+  ],
+  "notes": [
+    "Mantener este topic para cambios, bugs, build y deploy de ObraCash.",
+    "Separar este frente del resto de los proyectos operativos."
+  ]
+}

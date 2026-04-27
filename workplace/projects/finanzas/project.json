@@ -1,0 +1,29 @@
+{
+  "id": "finanzas",
+  "name": "Orden financiero",
+  "description": "Documentos, notas y conversaciones de temas financieros.",
+  "color": "#059669",
+  "messages": [
+    {
+      "role": "assistant",
+      "text": "Aquí podemos trabajar estados, gastos y documentos sin mezclarlos con otros temas.",
+      "time": "11:48"
+    },
+    {
+      "role": "assistant",
+      "text": "Frente activo para ordenar estructura financiera, documentos y próximos pasos operativos.",
+      "time": "19:02"
+    }
+  ],
+  "documents": [
+    {
+      "name": "resumen-gastos.xlsx",
+      "uploadedAt": "2026-04-20 11:49"
+    }
+  ],
+  "notes": [
+    "Separar ingresos, egresos y pendientes.",
+    "Mantener consultas fiscales en un hilo propio.",
+    "Topic activo dentro del workplace."
+  ]
+}

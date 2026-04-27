@@ -1,0 +1,17 @@
+{
+  "id": "project-1776699923524",
+  "name": "Tesis Doctorado Carlos Zanardi",
+  "description": "Todo lo relacionado a mi tesis de Doctorado",
+  "color": "#f59e0b",
+  "messages": [
+    {
+      "role": "assistant",
+      "text": "Proyecto creado. Aquí puede cargar documentos y trabajar este tema por separado.",
+      "time": "12:45"
+    }
+  ],
+  "documents": [],
+  "notes": [
+    "Definir objetivo, documentos y próximos pasos."
+  ]
+}

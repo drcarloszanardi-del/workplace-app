@@ -1,0 +1,23 @@
+{
+  "id": "inversiones",
+  "name": "Jarvis inversiones",
+  "description": "Seguimiento de inversiones, radar de oportunidades y análisis patrimonial operativo.",
+  "color": "#db2777",
+  "messages": [
+    {
+      "role": "assistant",
+      "text": "Proyecto activo para inversiones y evaluación de oportunidades.",
+      "time": "19:06"
+    }
+  ],
+  "documents": [
+    {
+      "name": "RADAR_INVERSIONES_ZANARDI.md",
+      "uploadedAt": "2026-04-26 19:06"
+    }
+  ],
+  "notes": [
+    "Usar este topic para oportunidades de inversión y seguimiento.",
+    "Mantener separado de inmobiliaria y finanzas operativas."
+  ]
+}

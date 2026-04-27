@@ -1,0 +1,23 @@
+{
+  "id": "papers-cientificos",
+  "name": "Jarvis papers científicos",
+  "description": "Papers, research y estructura científica del señor Zanardi.",
+  "color": "#2563eb",
+  "messages": [
+    {
+      "role": "assistant",
+      "text": "Proyecto activo para papers, ideas científicas y desarrollo de research.",
+      "time": "19:06"
+    }
+  ],
+  "documents": [
+    {
+      "name": "papers",
+      "uploadedAt": "2026-04-26 19:06"
+    }
+  ],
+  "notes": [
+    "Usar este topic para pipeline de papers y materiales científicos.",
+    "Mantener separado de tesis y de otros frentes clínicos."
+  ]
+}

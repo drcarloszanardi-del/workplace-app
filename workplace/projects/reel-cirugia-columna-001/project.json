@@ -1,0 +1,123 @@
+{
+  "id": "reel-cirugia-columna-001",
+  "name": "Reel cirugía de columna 001",
+  "description": "Primer reel profesional con imágenes de quirófano y microcirugía.",
+  "color": "#0ea5e9",
+  "messages": [
+    {
+      "role": "assistant",
+      "text": "Proyecto creado para trabajar un reel profesional sobre cirugía de columna con imágenes de quirófano.",
+      "time": "13:16"
+    }
+  ],
+  "documents": [
+    {
+      "name": "file_28---062becea-a402-42a7-be3e-fc7e9db71452.jpg",
+      "storedName": "file_28---062becea-a402-42a7-be3e-fc7e9db71452.jpg",
+      "uploadedAt": "2026-04-20 13:16",
+      "url": "/uploads/reel-cirugia-columna-001/file_28---062becea-a402-42a7-be3e-fc7e9db71452.jpg"
+    },
+    {
+      "name": "file_29---de110c4e-dbda-4ead-bc2d-426b9cc99dfc.jpg",
+      "storedName": "file_29---de110c4e-dbda-4ead-bc2d-426b9cc99dfc.jpg",
+      "uploadedAt": "2026-04-20 13:16",
+      "url": "/uploads/reel-cirugia-columna-001/file_29---de110c4e-dbda-4ead-bc2d-426b9cc99dfc.jpg"
+    },
+    {
+      "name": "file_30---7988a2ea-489a-49b7-9412-347a1556b716.jpg",
+      "storedName": "file_30---7988a2ea-489a-49b7-9412-347a1556b716.jpg",
+      "uploadedAt": "2026-04-20 13:16",
+      "url": "/uploads/reel-cirugia-columna-001/file_30---7988a2ea-489a-49b7-9412-347a1556b716.jpg"
+    },
+    {
+      "name": "file_31---85cfb5a4-a3f0-48a2-ace3-f61e689850b5.jpg",
+      "storedName": "file_31---85cfb5a4-a3f0-48a2-ace3-f61e689850b5.jpg",
+      "uploadedAt": "2026-04-20 13:16",
+      "url": "/uploads/reel-cirugia-columna-001/file_31---85cfb5a4-a3f0-48a2-ace3-f61e689850b5.jpg"
+    },
+    {
+      "name": "file_32---2ecad430-093c-4860-ba76-cf1a19f63d0e.jpg",
+      "storedName": "file_32---2ecad430-093c-4860-ba76-cf1a19f63d0e.jpg",
+      "uploadedAt": "2026-04-20 13:16",
+      "url": "/uploads/reel-cirugia-columna-001/file_32---2ecad430-093c-4860-ba76-cf1a19f63d0e.jpg"
+    },
+    {
+      "name": "file_33---f350ab01-feb9-4a3a-a90c-a752259cd107.jpg",
+      "storedName": "file_33---f350ab01-feb9-4a3a-a90c-a752259cd107.jpg",
+      "uploadedAt": "2026-04-20 13:16",
+      "url": "/uploads/reel-cirugia-columna-001/file_33---f350ab01-feb9-4a3a-a90c-a752259cd107.jpg"
+    },
+    {
+      "name": "file_34---64ea61ff-3b39-4e7f-b881-0f4404825d52.jpg",
+      "storedName": "file_34---64ea61ff-3b39-4e7f-b881-0f4404825d52.jpg",
+      "uploadedAt": "2026-04-20 13:16",
+      "url": "/uploads/reel-cirugia-columna-001/file_34---64ea61ff-3b39-4e7f-b881-0f4404825d52.jpg"
+    }
+  ],
+  "notes": [
+    "Enfoque: autoridad profesional, precisión y tecnología.",
+    "Evitar tono exhibicionista o excesivamente impactante.",
+    "Mantener estética médica sobria."
+  ],
+  "reels": [
+    {
+      "createdAt": "2026-04-20 13:16",
+      "brief": "Reel profesional sobre cirugía de columna mostrando precisión, tecnología y trabajo en equipo.",
+      "plan": {
+        "concept": "Precisión, tecnología y trabajo en equipo en cirugía de columna.",
+        "hook": "Cada detalle importa en cirugía de columna.",
+        "styleModes": [
+          "médico profesional",
+          "institucional",
+          "comercial sobrio"
+        ],
+        "structure": [
+          "Escena 1: apertura amplia del quirófano para ubicar contexto.",
+          "Escena 2: plano de trabajo con microscopio mostrando precisión.",
+          "Escena 3: detalle técnico de la intervención con foco en control y tecnología.",
+          "Escena 4: cierre con equipo y mensaje institucional sobrio."
+        ],
+        "editDirection": [
+          "Ritmo sereno y profesional.",
+          "Evitar golpes visuales agresivos.",
+          "Usar transiciones limpias y discretas.",
+          "Dar prioridad a precisión y contexto médico."
+        ],
+        "shotSelection": [
+          "Toma 1: file_31---85cfb5a4-a3f0-48a2-ace3-f61e689850b5.jpg como imagen principal o portada.",
+          "Toma 2: file_28---062becea-a402-42a7-be3e-fc7e9db71452.jpg para apertura amplia.",
+          "Toma 3: file_30---7988a2ea-489a-49b7-9412-347a1556b716.jpg para reforzar precisión técnica.",
+          "Toma 4: file_33---f350ab01-feb9-4a3a-a90c-a752259cd107.jpg para trabajo en equipo.",
+          "Toma 5: file_34---64ea61ff-3b39-4e7f-b881-0f4404825d52.jpg como cierre contextual."
+        ],
+        "coverIdea": "Usar file_31---85cfb5a4-a3f0-48a2-ace3-f61e689850b5.jpg con título corto en portada.",
+        "onScreenText": [
+          "Cada detalle importa",
+          "Precisión en cada paso",
+          "Tecnología aplicada",
+          "Trabajo en equipo"
+        ],
+        "caption": "La cirugía de columna exige planificación, experiencia, tecnología y trabajo coordinado. Cada decisión dentro del quirófano busca un mismo objetivo: actuar con precisión y responsabilidad en beneficio del paciente.",
+        "cta": "Si le interesa este tipo de contenido, puede seguirme para ver más sobre cirugía de columna y neurocirugía.",
+        "hashtags": [
+          "#CirugiaDeColumna",
+          "#Neurocirugia",
+          "#Microcirugia",
+          "#Salud"
+        ],
+        "publishingChecklist": [
+          "Verificar que no haya datos identificatorios visibles.",
+          "Mantener selección visual sobria y no invasiva.",
+          "Usar formato vertical 9:16.",
+          "Confirmar legibilidad del texto.",
+          "Publicar manualmente desde la cuenta correspondiente."
+        ],
+        "styleVariants": {
+          "medicoProfesional": "Enfatizar precisión, tecnología y criterio quirúrgico.",
+          "institucional": "Mostrar equipo, entorno y calidad del trabajo médico.",
+          "comercialSobrio": "Transmitir confianza profesional sin tono marketinero."
+        }
+      }
+    }
+  ]
+}

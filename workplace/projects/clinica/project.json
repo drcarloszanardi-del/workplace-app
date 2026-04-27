@@ -1,0 +1,18 @@
+{
+  "id": "clinica",
+  "name": "Jarvis clínica",
+  "description": "Frente clínico y operativo vinculado a práctica médica, consultorio y pacientes.",
+  "color": "#f97316",
+  "messages": [
+    {
+      "role": "assistant",
+      "text": "Proyecto activo para temas clínicos y operativos de la práctica médica.",
+      "time": "19:06"
+    }
+  ],
+  "documents": [],
+  "notes": [
+    "Reservar este topic para práctica clínica y temas asistenciales.",
+    "No mezclar con tesis, reels ni inversiones."
+  ]
+}

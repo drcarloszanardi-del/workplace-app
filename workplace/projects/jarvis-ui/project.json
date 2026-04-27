@@ -1,0 +1,52 @@
+{
+  "id": "jarvis-ui",
+  "name": "Interfaz Jarvis",
+  "description": "Diseño del espacio de trabajo por proyectos.",
+  "color": "#7c3aed",
+  "messages": [
+    {
+      "role": "assistant",
+      "text": "Este hilo queda reservado para el desarrollo de la interfaz local tipo ChatGPT o Claude.",
+      "time": "12:20"
+    },
+    {
+      "role": "user",
+      "text": "Para subir documentos en cada proyecto cómo lo hago",
+      "time": "12:35"
+    },
+    {
+      "role": "user",
+      "text": "POdes leer esto",
+      "time": "12:40"
+    },
+    {
+      "role": "assistant",
+      "text": "Mensaje guardado en este proyecto. Puedo usar este hilo para seguir trabajando sin mezclarlo con otros temas.",
+      "time": "12:40"
+    },
+    {
+      "role": "user",
+      "text": "https://www.youtube.com/watch?v=CxErCGVo-oo  quiero que abras este enlace de you tube y escuches lo que dice alex. Me digas tu opinion sobre el seteo que propone para vos. Los veamos juntos y te autorice a crear tus propias skill para mejorar tu performance",
+      "time": "17:27"
+    },
+    {
+      "role": "assistant",
+      "text": "Mensaje guardado. Este proyecto ya tiene contexto relacionado y podemos seguir trabajando aquí sin mezclarlo con otros temas.",
+      "time": "17:27"
+    }
+  ],
+  "documents": [
+    {
+      "name": "wireframe-mvp.png",
+      "uploadedAt": "2026-04-20 12:21"
+    },
+    {
+      "name": "ideas-ui.md",
+      "uploadedAt": "2026-04-20 12:24"
+    }
+  ],
+  "notes": [
+    "Sidebar clara, adjuntos por proyecto y contexto separado.",
+    "Agregar tareas y vista de actividad en una segunda iteración."
+  ]
+}

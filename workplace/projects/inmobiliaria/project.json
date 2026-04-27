@@ -1,0 +1,42 @@
+{
+  "id": "inmobiliaria",
+  "name": "Búsqueda inmobiliaria",
+  "description": "Consultas, seguimiento y evaluación de propiedades.",
+  "color": "#2563eb",
+  "messages": [
+    {
+      "role": "assistant",
+      "text": "Tengo separado este proyecto. Aquí podemos concentrar contactos, documentos y próximos pasos sobre propiedades.",
+      "time": "12:02"
+    },
+    {
+      "role": "user",
+      "text": "Quiero que este proyecto tenga todos los mails y fotos de inmuebles.",
+      "time": "12:04"
+    },
+    {
+      "role": "user",
+      "text": "Jarvis este es el chat que usamos como principal",
+      "time": "08:21"
+    },
+    {
+      "role": "assistant",
+      "text": "Mensaje guardado. Este proyecto ya tiene contexto relacionado y podemos seguir trabajando aquí sin mezclarlo con otros temas.",
+      "time": "08:21"
+    }
+  ],
+  "documents": [
+    {
+      "name": "foto-frente-casa.jpg",
+      "uploadedAt": "2026-04-20 12:05"
+    },
+    {
+      "name": "respuesta-inmobiliaria.pdf",
+      "uploadedAt": "2026-04-20 12:06"
+    }
+  ],
+  "notes": [
+    "Pedir precio de venta, comisión y estado legal.",
+    "Mantener tono sobrio y no discutir precio sin datos."
+  ]
+}
