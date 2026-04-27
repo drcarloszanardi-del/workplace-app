@@ -22,6 +22,7 @@ type ProjectCard = {
   avanceAutonomo?: 'si' | 'no';
   esperaRespuesta?: 'si' | 'no';
   actividadPct?: number;
+  progresoPct?: number;
   totalItems?: number;
   completedItems?: number;
 };
@@ -92,7 +93,16 @@ function summarizeProject(project: any, fallback: string) {
   }).length;
   const totalItems = messages.length + notes.length + documents.length + reels.length + tasks.length;
   const completedItems = completedTasks;
-  const actividadPct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+  const progresoPct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+  const activitySignals = [
+    Math.min(messages.length * 12, 36),
+    Math.min(notes.length * 10, 20),
+    Math.min(documents.length * 12, 24),
+    Math.min(reels.length * 18, 18),
+    Math.min(completedTasks * 16, 32),
+    necesita ? -10 : 10,
+  ];
+  const actividadPct = Math.max(5, Math.min(100, activitySignals.reduce((acc, n) => acc + n, 0)));
 
   return {
     estado: necesita ? ('amarillo' as 'amarillo') : ('verde' as 'verde'),
@@ -103,6 +113,7 @@ function summarizeProject(project: any, fallback: string) {
     esperaRespuesta: necesita ? ('si' as 'si') : ('no' as 'no'),
     necesitaDelUsuario: necesita,
     actividadPct,
+    progresoPct,
     totalItems,
     completedItems,
     extra: [
@@ -164,6 +175,7 @@ async function readProjectCards(): Promise<ProjectCard[]> {
           avanceAutonomo: summary.avanceAutonomo,
           esperaRespuesta: summary.esperaRespuesta,
           actividadPct: summary.actividadPct,
+          progresoPct: summary.progresoPct,
           totalItems: summary.totalItems,
           completedItems: summary.completedItems,
           extra: [summary.extra, folder ? `Carpeta: ${folder}` : ''].filter(Boolean).join(' | '),
@@ -272,6 +284,7 @@ async function buildTopicsStatus(): Promise<WorkplaceStatus> {
       avanceAutonomo: card.avanceAutonomo || 'si',
       esperaRespuesta: card.esperaRespuesta || 'no',
       actividadPct: card.actividadPct ?? 0,
+      progresoPct: card.progresoPct ?? 0,
       totalItems: card.totalItems ?? 0,
       completedItems: card.completedItems ?? 0,
       extra: [card.descripcion, card.extra].filter(Boolean).join(' | '),

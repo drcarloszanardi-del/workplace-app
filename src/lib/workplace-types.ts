@@ -10,6 +10,7 @@ export type Frente = {
   avanceAutonomo?: 'si' | 'no';
   esperaRespuesta?: 'si' | 'no';
   actividadPct?: number;
+  progresoPct?: number;
   totalItems?: number;
   completedItems?: number;
 };

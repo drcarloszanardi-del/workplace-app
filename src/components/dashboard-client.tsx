@@ -172,11 +172,18 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
                       <span>% de actividad</span>
                       <span>{clampPct(frente.actividadPct).toFixed(0)}%</span>
                     </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-[#0f1a31]">
+                      <div className="h-full rounded-full bg-[#1D9E75] transition-all" style={{ width: `${clampPct(frente.actividadPct)}%` }} />
+                    </div>
+                    <div className="mt-3 mb-1 flex items-center justify-between text-xs text-[#a0a0a0]">
+                      <span>% de progreso real</span>
+                      <span>{clampPct(frente.progresoPct).toFixed(0)}%</span>
+                    </div>
                     <div className="mb-1 text-[11px] text-[#7f8aa3]">
                       {frente.completedItems ?? 0} / {frente.totalItems ?? 0} elementos cerrados
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-[#0f1a31]">
-                      <div className="h-full rounded-full bg-[#1D9E75] transition-all" style={{ width: `${clampPct(frente.actividadPct)}%` }} />
+                      <div className="h-full rounded-full bg-[#4f46e5] transition-all" style={{ width: `${clampPct(frente.progresoPct)}%` }} />
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2 text-xs">
