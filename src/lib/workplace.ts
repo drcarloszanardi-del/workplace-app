@@ -21,6 +21,7 @@ type ProjectCard = {
   faseActual?: string;
   avanceAutonomo?: 'si' | 'no';
   esperaRespuesta?: 'si' | 'no';
+  actividadPct?: number;
 };
 
 export async function readLocalStatus(): Promise<WorkplaceStatus> {
@@ -83,6 +84,15 @@ function summarizeProject(project: any, fallback: string) {
 
   const necesita = notes.find((n: string) => /necesita|aprobaci|respuesta|validaci|contestar/i.test(n)) || '';
 
+  const activitySignals = [
+    messages.length ? 35 : 0,
+    notes.length ? 20 : 0,
+    documents.length ? 20 : 0,
+    reels.length ? 15 : 0,
+    necesita ? -20 : 10,
+  ];
+  const actividadPct = Math.max(5, Math.min(100, activitySignals.reduce((acc, n) => acc + n, 0)));
+
   return {
     estado: necesita ? ('amarillo' as 'amarillo') : ('verde' as 'verde'),
     ultimoAvance: lastMessage || fallback,
@@ -91,6 +101,7 @@ function summarizeProject(project: any, fallback: string) {
     avanceAutonomo: necesita ? ('no' as 'no') : ('si' as 'si'),
     esperaRespuesta: necesita ? ('si' as 'si') : ('no' as 'no'),
     necesitaDelUsuario: necesita,
+    actividadPct,
     extra: [
       documents.length ? `${documents.length} documento(s)` : '',
       reels.length ? `${reels.length} reel(es)` : '',
@@ -148,6 +159,7 @@ async function readProjectCards(): Promise<ProjectCard[]> {
           faseActual: summary.faseActual,
           avanceAutonomo: summary.avanceAutonomo,
           esperaRespuesta: summary.esperaRespuesta,
+          actividadPct: summary.actividadPct,
           extra: [summary.extra, folder ? `Carpeta: ${folder}` : ''].filter(Boolean).join(' | '),
         };
       } catch {
@@ -253,6 +265,7 @@ async function buildTopicsStatus(): Promise<WorkplaceStatus> {
       faseActual: card.faseActual || 'Avance autónomo en curso',
       avanceAutonomo: card.avanceAutonomo || 'si',
       esperaRespuesta: card.esperaRespuesta || 'no',
+      actividadPct: card.actividadPct ?? 0,
       extra: [card.descripcion, card.extra].filter(Boolean).join(' | '),
     };
   }

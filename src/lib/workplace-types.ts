@@ -9,6 +9,7 @@ export type Frente = {
   faseActual?: string;
   avanceAutonomo?: 'si' | 'no';
   esperaRespuesta?: 'si' | 'no';
+  actividadPct?: number;
 };
 
 export type WorkplaceStatus = {

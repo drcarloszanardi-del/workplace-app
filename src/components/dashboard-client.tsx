@@ -32,6 +32,11 @@ function ago(raw: string) {
   return `hace ${days} d`;
 }
 
+function clampPct(value?: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Number(value)));
+}
+
 export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceStatus }) {
   const [status, setStatus] = useState(initialStatus);
   const [message, setMessage] = useState('');
@@ -162,6 +167,15 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
                 <div>
                   <div className="text-sm text-[#a0a0a0]">Fase actual</div>
                   <div className="mt-1 leading-relaxed">{frente.faseActual || 'Avance autónomo en curso'}</div>
+                  <div className="mt-3">
+                    <div className="mb-1 flex items-center justify-between text-xs text-[#a0a0a0]">
+                      <span>% de actividad</span>
+                      <span>{clampPct(frente.actividadPct).toFixed(0)}%</span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-[#0f1a31]">
+                      <div className="h-full rounded-full bg-[#1D9E75] transition-all" style={{ width: `${clampPct(frente.actividadPct)}%` }} />
+                    </div>
+                  </div>
                   <div className="mt-2 flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full border border-[#0f3460] bg-[#0f1a31] px-3 py-1">{autonomia}</span>
                     <span className={`rounded-full border px-3 py-1 ${frente.esperaRespuesta === 'si' ? 'border-[#EF9F27] bg-[#EF9F27]/12 text-[#ffd089]' : 'border-[#0f3460] bg-[#0f1a31]'}`}>{respuesta}</span>
