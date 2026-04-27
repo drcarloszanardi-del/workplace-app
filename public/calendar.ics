@@ -1,0 +1,110 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Jarvis//Agenda Zanardi//ES
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Jarvis - Agenda Zanardi
+X-WR-TIMEZONE:America/Argentina/Buenos_Aires
+BEGIN:VTIMEZONE
+TZID:America/Argentina/Buenos_Aires
+X-LIC-LOCATION:America/Argentina/Buenos_Aires
+BEGIN:STANDARD
+TZOFFSETFROM:-0300
+TZOFFSETTO:-0300
+TZNAME:-03
+DTSTART:19700101T000000
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:weekly-mon-clinica-centro@jarvis
+DTSTAMP:20260427T003801Z
+SUMMARY:Cirugías\, Clínica Centro
+DTSTART;TZID=America/Argentina/Buenos_Aires:20260427T080000
+DTEND;TZID=America/Argentina/Buenos_Aires:20260427T130000
+RRULE:FREQ=WEEKLY;BYDAY=MO
+LOCATION:Clínica Centro
+DESCRIPTION:Bloque quirúrgico habitual de lunes por la mañana
+END:VEVENT
+BEGIN:VEVENT
+UID:weekly-tue-pellegrini@jarvis
+DTSTAMP:20260427T003801Z
+SUMMARY:Consultorio\, Centro Médico Pellegrini
+DTSTART;TZID=America/Argentina/Buenos_Aires:20260428T080000
+DTEND;TZID=America/Argentina/Buenos_Aires:20260428T120000
+RRULE:FREQ=WEEKLY;BYDAY=TU
+LOCATION:Centro Médico Pellegrini
+DESCRIPTION:Consultorio habitual
+END:VEVENT
+BEGIN:VEVENT
+UID:weekly-wed-clinica-centro-bloqueos@jarvis
+DTSTAMP:20260427T003801Z
+SUMMARY:Bloqueos de dolor\, Clínica Centro
+DTSTART;TZID=America/Argentina/Buenos_Aires:20260429T080000
+DTEND;TZID=America/Argentina/Buenos_Aires:20260429T100000
+RRULE:FREQ=WEEKLY;BYDAY=WE
+LOCATION:Clínica Centro
+END:VEVENT
+BEGIN:VEVENT
+UID:weekly-wed-pellegrini@jarvis
+DTSTAMP:20260427T003801Z
+SUMMARY:Consultorio\, Centro Médico Pellegrini
+DTSTART;TZID=America/Argentina/Buenos_Aires:20260429T103000
+DTEND;TZID=America/Argentina/Buenos_Aires:20260429T130000
+RRULE:FREQ=WEEKLY;BYDAY=WE
+LOCATION:Centro Médico Pellegrini
+END:VEVENT
+BEGIN:VEVENT
+UID:weekly-thu-pellegrini@jarvis
+DTSTAMP:20260427T003801Z
+SUMMARY:Consultorio\, Centro Médico Pellegrini
+DTSTART;TZID=America/Argentina/Buenos_Aires:20260430T080000
+DTEND;TZID=America/Argentina/Buenos_Aires:20260430T123000
+RRULE:FREQ=WEEKLY;BYDAY=TH
+LOCATION:Centro Médico Pellegrini
+END:VEVENT
+BEGIN:VEVENT
+UID:weekly-thu-clinica-centro@jarvis
+DTSTAMP:20260427T003801Z
+SUMMARY:Cirugías\, Clínica Centro
+DTSTART;TZID=America/Argentina/Buenos_Aires:20260430T140000
+DTEND;TZID=America/Argentina/Buenos_Aires:20260430T180000
+RRULE:FREQ=WEEKLY;BYDAY=TH
+LOCATION:Clínica Centro
+END:VEVENT
+BEGIN:VEVENT
+UID:weekly-fri-lpf@jarvis
+DTSTAMP:20260427T003801Z
+SUMMARY:Cirugías\, La Pequeña Familia
+DTSTART;TZID=America/Argentina/Buenos_Aires:20260501T080000
+DTEND;TZID=America/Argentina/Buenos_Aires:20260501T120000
+RRULE:FREQ=WEEKLY;BYDAY=FR
+LOCATION:La Pequeña Familia
+END:VEVENT
+BEGIN:VEVENT
+UID:swim-mon@jarvis
+DTSTAMP:20260427T003801Z
+SUMMARY:Natación
+DTSTART;TZID=America/Argentina/Buenos_Aires:20260427T200000
+DTEND;TZID=America/Argentina/Buenos_Aires:20260427T210000
+RRULE:FREQ=WEEKLY;BYDAY=MO
+LOCATION:A definir
+END:VEVENT
+BEGIN:VEVENT
+UID:swim-we@jarvis
+DTSTAMP:20260427T003801Z
+SUMMARY:Natación
+DTSTART;TZID=America/Argentina/Buenos_Aires:20260429T200000
+DTEND;TZID=America/Argentina/Buenos_Aires:20260429T210000
+RRULE:FREQ=WEEKLY;BYDAY=WE
+LOCATION:A definir
+END:VEVENT
+BEGIN:VEVENT
+UID:swim-fr@jarvis
+DTSTAMP:20260427T003801Z
+SUMMARY:Natación
+DTSTART;TZID=America/Argentina/Buenos_Aires:20260501T200000
+DTEND;TZID=America/Argentina/Buenos_Aires:20260501T210000
+RRULE:FREQ=WEEKLY;BYDAY=FR
+LOCATION:A definir
+END:VEVENT
+END:VCALENDAR
