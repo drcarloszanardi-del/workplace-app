@@ -10,6 +10,8 @@ export type Frente = {
   avanceAutonomo?: 'si' | 'no';
   esperaRespuesta?: 'si' | 'no';
   actividadPct?: number;
+  totalItems?: number;
+  completedItems?: number;
 };
 
 export type WorkplaceStatus = {

@@ -172,6 +172,9 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
                       <span>% de actividad</span>
                       <span>{clampPct(frente.actividadPct).toFixed(0)}%</span>
                     </div>
+                    <div className="mb-1 text-[11px] text-[#7f8aa3]">
+                      {frente.completedItems ?? 0} / {frente.totalItems ?? 0} elementos cerrados
+                    </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-[#0f1a31]">
                       <div className="h-full rounded-full bg-[#1D9E75] transition-all" style={{ width: `${clampPct(frente.actividadPct)}%` }} />
                     </div>

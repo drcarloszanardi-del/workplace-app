@@ -22,6 +22,8 @@ type ProjectCard = {
   avanceAutonomo?: 'si' | 'no';
   esperaRespuesta?: 'si' | 'no';
   actividadPct?: number;
+  totalItems?: number;
+  completedItems?: number;
 };
 
 export async function readLocalStatus(): Promise<WorkplaceStatus> {
@@ -88,20 +90,9 @@ function summarizeProject(project: any, fallback: string) {
     const state = String(task?.status || task?.estado || '').toLowerCase();
     return ['done', 'completed', 'complete', 'hecho', 'cerrado', 'closed'].includes(state);
   }).length;
-  const pendingTasks = tasks.filter((task: any) => {
-    const state = String(task?.status || task?.estado || '').toLowerCase();
-    return !['done', 'completed', 'complete', 'hecho', 'cerrado', 'closed'].includes(state);
-  }).length;
-
-  const rawActivity =
-    messages.length * 8 +
-    notes.length * 6 +
-    documents.length * 12 +
-    reels.length * 15 +
-    completedTasks * 14 -
-    pendingTasks * 3 -
-    (necesita ? 12 : 0);
-  const actividadPct = Math.max(5, Math.min(100, rawActivity));
+  const totalItems = messages.length + notes.length + documents.length + reels.length + tasks.length;
+  const completedItems = completedTasks;
+  const actividadPct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
   return {
     estado: necesita ? ('amarillo' as 'amarillo') : ('verde' as 'verde'),
@@ -112,6 +103,8 @@ function summarizeProject(project: any, fallback: string) {
     esperaRespuesta: necesita ? ('si' as 'si') : ('no' as 'no'),
     necesitaDelUsuario: necesita,
     actividadPct,
+    totalItems,
+    completedItems,
     extra: [
       documents.length ? `${documents.length} documento(s)` : '',
       reels.length ? `${reels.length} reel(es)` : '',
@@ -171,6 +164,8 @@ async function readProjectCards(): Promise<ProjectCard[]> {
           avanceAutonomo: summary.avanceAutonomo,
           esperaRespuesta: summary.esperaRespuesta,
           actividadPct: summary.actividadPct,
+          totalItems: summary.totalItems,
+          completedItems: summary.completedItems,
           extra: [summary.extra, folder ? `Carpeta: ${folder}` : ''].filter(Boolean).join(' | '),
         };
       } catch {
@@ -277,6 +272,8 @@ async function buildTopicsStatus(): Promise<WorkplaceStatus> {
       avanceAutonomo: card.avanceAutonomo || 'si',
       esperaRespuesta: card.esperaRespuesta || 'no',
       actividadPct: card.actividadPct ?? 0,
+      totalItems: card.totalItems ?? 0,
+      completedItems: card.completedItems ?? 0,
       extra: [card.descripcion, card.extra].filter(Boolean).join(' | '),
     };
   }
