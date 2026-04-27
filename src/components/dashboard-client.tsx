@@ -180,7 +180,7 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
                       <span>{clampPct(frente.progresoPct).toFixed(0)}%</span>
                     </div>
                     <div className="mb-1 text-[11px] text-[#7f8aa3]">
-                      {frente.completedItems ?? 0} / {frente.totalItems ?? 0} elementos cerrados
+                      avance del elemento actual: {clampPct(frente.progresoPct).toFixed(0)}%
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-[#0f1a31]">
                       <div className="h-full rounded-full bg-[#4f46e5] transition-all" style={{ width: `${clampPct(frente.progresoPct)}%` }} />
