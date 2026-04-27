@@ -94,7 +94,8 @@ function summarizeProject(project: any, fallback: string) {
   }).length;
   const totalItems = messages.length + notes.length + documents.length + reels.length + tasks.length;
   const completedItems = completedTasks;
-  const progresoPct = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+  const progresoBase = tasks.length > 0 ? tasks.length : totalItems;
+  const progresoPct = progresoBase > 0 ? Math.round((completedItems / progresoBase) * 100) : Math.min(95, Math.max(10, messages.length * 10 + notes.length * 12 + documents.length * 14 + reels.length * 20));
   const activitySignals = [
     Math.min(messages.length * 12, 36),
     Math.min(notes.length * 10, 20),
