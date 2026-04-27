@@ -79,19 +79,29 @@ function summarizeProject(project: any, fallback: string) {
   const notes = Array.isArray(project?.notes) ? project.notes.filter(Boolean) : [];
   const documents = Array.isArray(project?.documents) ? project.documents : [];
   const reels = Array.isArray(project?.reels) ? project.reels : [];
+  const tasks = Array.isArray(project?.tasks) ? project.tasks : [];
   const lastMessage = [...messages].reverse().find((m) => m?.text)?.text || '';
   const pendingNote = notes.find((n: string) => /pend|definir|revis|pedir|agregar|mantener/i.test(n)) || '';
 
   const necesita = notes.find((n: string) => /necesita|aprobaci|respuesta|validaci|contestar/i.test(n)) || '';
+  const completedTasks = tasks.filter((task: any) => {
+    const state = String(task?.status || task?.estado || '').toLowerCase();
+    return ['done', 'completed', 'complete', 'hecho', 'cerrado', 'closed'].includes(state);
+  }).length;
+  const pendingTasks = tasks.filter((task: any) => {
+    const state = String(task?.status || task?.estado || '').toLowerCase();
+    return !['done', 'completed', 'complete', 'hecho', 'cerrado', 'closed'].includes(state);
+  }).length;
 
-  const activitySignals = [
-    messages.length ? 35 : 0,
-    notes.length ? 20 : 0,
-    documents.length ? 20 : 0,
-    reels.length ? 15 : 0,
-    necesita ? -20 : 10,
-  ];
-  const actividadPct = Math.max(5, Math.min(100, activitySignals.reduce((acc, n) => acc + n, 0)));
+  const rawActivity =
+    messages.length * 8 +
+    notes.length * 6 +
+    documents.length * 12 +
+    reels.length * 15 +
+    completedTasks * 14 -
+    pendingTasks * 3 -
+    (necesita ? 12 : 0);
+  const actividadPct = Math.max(5, Math.min(100, rawActivity));
 
   return {
     estado: necesita ? ('amarillo' as 'amarillo') : ('verde' as 'verde'),
@@ -106,6 +116,7 @@ function summarizeProject(project: any, fallback: string) {
       documents.length ? `${documents.length} documento(s)` : '',
       reels.length ? `${reels.length} reel(es)` : '',
       notes.length ? `${notes.length} nota(s)` : '',
+      tasks.length ? `${tasks.length} tarea(s)` : '',
     ].filter(Boolean).join(' | '),
   };
 }
