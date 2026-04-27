@@ -6,7 +6,13 @@ import { refreshStructuredStatus } from '@/lib/workplace-sync';
 export async function GET() {
   try {
     const status = await refreshStructuredStatus();
-    return NextResponse.json(status);
+    return NextResponse.json(status, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
+      },
+    });
   } catch {
     return NextResponse.json({
       lastHeartbeat: new Date().toISOString(),

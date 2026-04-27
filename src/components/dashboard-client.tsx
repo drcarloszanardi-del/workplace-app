@@ -47,7 +47,7 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
   useEffect(() => {
     const interval = window.setInterval(async () => {
       try {
-        const res = await fetch('/api/status');
+        const res = await fetch('/api/status', { cache: 'no-store' });
         if (!res.ok) return;
         const next = await res.json();
         setStatus(next);
@@ -108,7 +108,7 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
         alert('Heartbeat remoto no disponible en este deploy.');
         return;
       }
-      const res = await fetch('/api/status');
+      const res = await fetch('/api/status', { cache: 'no-store' });
       if (!res.ok) return;
       setStatus(await res.json());
     } catch {

@@ -4,7 +4,8 @@ import type { WorkplaceStatus } from '@/lib/workplace-types';
 
 export const statusPath = '/Users/jarvis/workplace/status.json';
 const workspaceRoot = process.env.WORKPLACE_SOURCE_ROOT || '/Users/jarvis/.openclaw/workspace';
-const projectsRoot = `${workspaceRoot}/workplace/projects`;
+const localProjectsRoot = `${workspaceRoot}/workplace/projects`;
+const bundledProjectsRoot = `${process.cwd()}/workplace/projects`;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ieznwnrhbroiaobheoan.supabase.co';
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
@@ -129,19 +130,29 @@ async function readProjectCards(): Promise<ProjectCard[]> {
   const preferred = ['obracash', 'papers-cientificos', 'project-1776699923524', 'reel-cirugia-columna-001', 'clinica', 'inversiones', 'inmobiliaria', 'finanzas', 'jarvis-ui'];
   let dirs: string[] = [];
 
-  try {
-    const entries = await fs.readdir(projectsRoot, { withFileTypes: true });
-    dirs = entries
-      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
-      .map((entry) => entry.name)
-      .sort();
-  } catch {}
+  const candidateRoots = [localProjectsRoot, bundledProjectsRoot];
+  let activeProjectsRoot = candidateRoots[0];
+
+  for (const root of candidateRoots) {
+    try {
+      const entries = await fs.readdir(root, { withFileTypes: true });
+      const found = entries
+        .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+        .map((entry) => entry.name)
+        .sort();
+      if (found.length > 0) {
+        dirs = found;
+        activeProjectsRoot = root;
+        break;
+      }
+    } catch {}
+  }
 
   const mergedDirs = [...new Set([...preferred, ...dirs])];
   const cards = await Promise.all(
     mergedDirs.map(async (folder) => {
-      const readmePath = `${projectsRoot}/${folder}/README.md`;
-      const projectJsonPath = `${projectsRoot}/${folder}/project.json`;
+      const readmePath = `${activeProjectsRoot}/${folder}/README.md`;
+      const projectJsonPath = `${activeProjectsRoot}/${folder}/project.json`;
       try {
         const [readmeContent, projectRaw] = await Promise.all([
           fs.readFile(readmePath, 'utf8').catch(() => ''),
