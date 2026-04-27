@@ -17,10 +17,12 @@ END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
 UID:ao-meeting-20260428-1900@jarvis
-DTSTAMP:20260427T015100Z
+DTSTAMP:20260427T015230Z
 SUMMARY:Meeting de AO
 DTSTART;TZID=America/Argentina/Buenos_Aires:20260428T190000
 DTEND;TZID=America/Argentina/Buenos_Aires:20260428T200000
-DESCRIPTION:Recordatorio puntual creado por Jarvis
+LOCATION:Zoom
+DESCRIPTION:Actividad de AO. Enlace de registro: https://us06web.zoom.us/meeting/register/N2M9hwjTTLyNg_fnBFFizA
+URL:https://us06web.zoom.us/meeting/register/N2M9hwjTTLyNg_fnBFFizA
 END:VEVENT
 END:VCALENDAR
