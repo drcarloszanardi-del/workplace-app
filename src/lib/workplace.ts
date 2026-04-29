@@ -28,6 +28,31 @@ type ProjectCard = {
   completedItems?: number;
 };
 
+type ProjectTask = {
+  status?: string;
+  estado?: string;
+};
+
+type ProjectMessage = {
+  text?: string;
+};
+
+type ProjectData = {
+  id?: string;
+  name?: string;
+  description?: string;
+  messages?: ProjectMessage[];
+  notes?: string[];
+  documents?: unknown[];
+  reels?: unknown[];
+  tasks?: ProjectTask[];
+};
+
+const ESTADO_AMARILLO = 'amarillo' as const;
+const ESTADO_VERDE = 'verde' as const;
+const AVANCE_NO = 'no' as const;
+const AVANCE_SI = 'si' as const;
+
 export async function readLocalStatus(): Promise<WorkplaceStatus> {
   try {
     const raw = await fs.readFile(statusPath, 'utf8');
@@ -78,17 +103,17 @@ function folderToTitle(folder: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function summarizeProject(project: any, fallback: string) {
+function summarizeProject(project: ProjectData | null, fallback: string) {
   const messages = Array.isArray(project?.messages) ? project.messages : [];
-  const notes = Array.isArray(project?.notes) ? project.notes.filter(Boolean) : [];
+  const notes = Array.isArray(project?.notes) ? project.notes.filter((note): note is string => Boolean(note)) : [];
   const documents = Array.isArray(project?.documents) ? project.documents : [];
   const reels = Array.isArray(project?.reels) ? project.reels : [];
   const tasks = Array.isArray(project?.tasks) ? project.tasks : [];
-  const lastMessage = [...messages].reverse().find((m) => m?.text)?.text || '';
-  const pendingNote = notes.find((n: string) => /pend|definir|revis|pedir|agregar|mantener/i.test(n)) || '';
+  const lastMessage = [...messages].reverse().find((message) => message?.text)?.text || '';
+  const pendingNote = notes.find((n) => /pend|definir|revis|pedir|agregar|mantener/i.test(n)) || '';
 
-  const necesita = notes.find((n: string) => /necesita|aprobaci|respuesta|validaci|contestar/i.test(n)) || '';
-  const completedTasks = tasks.filter((task: any) => {
+  const necesita = notes.find((n) => /necesita|aprobaci|respuesta|validaci|contestar/i.test(n)) || '';
+  const completedTasks = tasks.filter((task) => {
     const state = String(task?.status || task?.estado || '').toLowerCase();
     return ['done', 'completed', 'complete', 'hecho', 'cerrado', 'closed'].includes(state);
   }).length;
@@ -109,12 +134,12 @@ function summarizeProject(project: any, fallback: string) {
   const actividadPct = Math.max(5, Math.min(100, activitySignals.reduce((acc, n) => acc + n, 0)));
 
   return {
-    estado: necesita ? ('amarillo' as 'amarillo') : ('verde' as 'verde'),
+    estado: necesita ? ESTADO_AMARILLO : ESTADO_VERDE,
     ultimoAvance: lastMessage || fallback,
     proximaTarea: pendingNote || 'Abrir detalle y continuar trabajo del frente',
     faseActual: necesita ? 'Esperando respuesta del señor Zanardi' : 'Avance autónomo en curso',
-    avanceAutonomo: necesita ? ('no' as 'no') : ('si' as 'si'),
-    esperaRespuesta: necesita ? ('si' as 'si') : ('no' as 'no'),
+    avanceAutonomo: necesita ? AVANCE_NO : AVANCE_SI,
+    esperaRespuesta: necesita ? AVANCE_SI : AVANCE_NO,
     necesitaDelUsuario: necesita,
     actividadPct,
     progresoPct,
@@ -169,9 +194,9 @@ async function readProjectCards(): Promise<ProjectCard[]> {
             ? lines[lines.findIndex((line) => line.startsWith('## Descripción')) + 1]?.trim() || ''
             : lines.find((line) => line && !line.startsWith('#') && !line.startsWith('-') && !line.startsWith('##')) || '';
 
-        let project: any = null;
+        let project: ProjectData | null = null;
         try {
-          project = projectRaw ? JSON.parse(projectRaw) : null;
+          project = projectRaw ? (JSON.parse(projectRaw) as ProjectData) : null;
         } catch {}
 
         const summary = summarizeProject(project, project?.description || descripcionFromReadme || `Proyecto ${folder}`);
@@ -200,13 +225,13 @@ async function readProjectCards(): Promise<ProjectCard[]> {
           nombre: folderToTitle(folder),
           descripcion: `Proyecto ${folder}`,
           folder,
-          estado: 'amarillo' as 'amarillo',
+          estado: ESTADO_AMARILLO,
           ultimoAvance: `Proyecto ${folder}`,
           proximaTarea: 'Abrir detalle y continuar trabajo del frente',
           necesitaDelUsuario: '',
           faseActual: 'Avance autónomo en curso',
-          avanceAutonomo: 'si' as 'si',
-          esperaRespuesta: 'no' as 'no',
+          avanceAutonomo: AVANCE_SI,
+          esperaRespuesta: AVANCE_NO,
           extra: `Carpeta: ${folder}`,
         };
       }

@@ -43,10 +43,12 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
   const [taskInputs, setTaskInputs] = useState<Record<string, string>>({});
   const [openTask, setOpenTask] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProjectDetail | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     const interval = window.setInterval(async () => {
       try {
+        setNow(Date.now());
         const res = await fetch('/api/status', { cache: 'no-store' });
         if (!res.ok) return;
         const next = await res.json();
@@ -59,9 +61,9 @@ export function DashboardClient({ initialStatus }: { initialStatus: WorkplaceSta
   const heartbeat = useMemo(() => {
     const d = parseDate(status.lastHeartbeat);
     if (!d) return { active: false, text: 'Sin heartbeat' };
-    const diff = (Date.now() - d.getTime()) / 60000;
+    const diff = (now - d.getTime()) / 60000;
     return diff < 35 ? { active: true, text: 'Jarvis activo' } : { active: false, text: 'Jarvis inactivo' };
-  }, [status.lastHeartbeat]);
+  }, [now, status.lastHeartbeat]);
 
   async function sendMessage() {
     if (!message.trim()) return;
