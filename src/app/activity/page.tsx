@@ -1,4 +1,6 @@
-export const dynamic = 'force-dynamic';
+'use client';
+
+import { useEffect, useState } from 'react';
 
 function fmt(raw?: string) {
   if (!raw) return 'sin fecha';
@@ -7,18 +9,32 @@ function fmt(raw?: string) {
   return date.toLocaleString('es-AR');
 }
 
-async function getActivity() {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  const res = await fetch(`${base}/api/activity`, { cache: 'no-store' });
-  if (!res.ok) throw new Error('No se pudo leer activity');
-  return res.json();
-}
+type ActivityPayload = {
+  status?: Record<string, any>;
+  recentEvents?: Record<string, any>[];
+  staleMinutes?: number;
+};
 
-export default async function ActivityPage() {
-  let data: any = { status: { derived_state: 'available' }, recentEvents: [], staleMinutes: 20 };
-  try {
-    data = await getActivity();
-  } catch {}
+export default function ActivityPage() {
+  const [data, setData] = useState<ActivityPayload>({
+    status: { derived_state: 'loading' },
+    recentEvents: [],
+    staleMinutes: 20,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/activity', { cache: 'no-store' });
+        if (!res.ok) return;
+        const next = await res.json();
+        if (!cancelled) setData(next);
+      } catch {}
+    };
+    void load();
+  }, []);
+
   const status = data.status || {};
   const recentEvents = Array.isArray(data.recentEvents) ? data.recentEvents : [];
 
@@ -53,7 +69,7 @@ export default async function ActivityPage() {
               <div className="text-sm text-slate-400">Eventos recientes</div>
               <h2 className="mt-1 text-2xl font-semibold">Últimos 25 eventos</h2>
             </div>
-            <div className="text-xs text-slate-500">stale después de {data.staleMinutes} min sin evidencia</div>
+            <div className="text-xs text-slate-500">stale después de {data.staleMinutes || 20} min sin evidencia</div>
           </div>
 
           <div className="mt-5 overflow-hidden rounded-2xl border border-white/10">
@@ -68,13 +84,13 @@ export default async function ActivityPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10 bg-[#07111f]">
-                {recentEvents.length ? recentEvents.map((event: any, idx: number) => (
+                {recentEvents.length ? recentEvents.map((event, idx) => (
                   <tr key={`${event.ts || 'row'}-${idx}`}>
-                    <td className="px-4 py-3 text-slate-300">{fmt(event.ts)}</td>
-                    <td className="px-4 py-3">{event.event || '-'}</td>
-                    <td className="px-4 py-3">{event.task || '-'}</td>
-                    <td className="px-4 py-3">{event.artifact || '-'}</td>
-                    <td className="px-4 py-3 text-slate-400">{event.note || '-'}</td>
+                    <td className="px-4 py-3 text-slate-300">{fmt(String(event.ts || ''))}</td>
+                    <td className="px-4 py-3">{String(event.event || '-')}</td>
+                    <td className="px-4 py-3">{String(event.task || '-')}</td>
+                    <td className="px-4 py-3">{String(event.artifact || '-')}</td>
+                    <td className="px-4 py-3 text-slate-400">{String(event.note || '-')}</td>
                   </tr>
                 )) : (
                   <tr>
