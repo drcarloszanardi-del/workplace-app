@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import { NextResponse } from 'next/server';
+import { getMergedStatus } from '@/lib/workplace';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,12 +26,15 @@ function deriveState(status: any) {
 
 export async function GET() {
   try {
+    const merged = await getMergedStatus();
+    const active = Object.values(merged.frentes || {}).find((frente: any) => frente?.avanceAutonomo === 'si') as any;
+
     const [statusRaw, logRaw] = await Promise.all([
-      fs.readFile(statusPath, 'utf8').catch(() => '{}'),
+      fs.readFile(statusPath, 'utf8').catch(() => ''),
       fs.readFile(logPath, 'utf8').catch(() => ''),
     ]);
 
-    const status = JSON.parse(statusRaw || '{}');
+    const parsedStatus = statusRaw ? JSON.parse(statusRaw) : null;
     const lines = logRaw.split('\n').filter(Boolean);
     const recentEvents = lines.slice(-25).map((line) => {
       try {
@@ -40,7 +44,29 @@ export async function GET() {
       }
     }).reverse();
 
+    const fallbackStatus = {
+      state: active ? 'working' : 'available',
+      task: active?.proximaTarea || active?.ultimoAvance || 'sin tarea',
+      last_evidence_at: merged.lastHeartbeat,
+      last_artifact: active?.nombre || 'Workplace',
+      note: active?.faseActual || 'Avance autónomo en curso',
+    };
+
+    const status = parsedStatus && parsedStatus.task ? parsedStatus : fallbackStatus;
     const derivedState = deriveState(status);
+
+    const events = recentEvents.length
+      ? recentEvents
+      : [
+          {
+            event: active ? 'topic_sync' : 'idle',
+            state: active ? 'working' : 'available',
+            task: fallbackStatus.task,
+            artifact: fallbackStatus.last_artifact,
+            note: fallbackStatus.note,
+            ts: merged.lastHeartbeat,
+          },
+        ];
 
     return NextResponse.json({
       ok: true,
@@ -48,7 +74,7 @@ export async function GET() {
         ...status,
         derived_state: derivedState,
       },
-      recentEvents,
+      recentEvents: events,
       staleMinutes,
     });
   } catch (error) {
