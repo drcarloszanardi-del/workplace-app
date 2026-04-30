@@ -33,7 +33,8 @@ function diffColor(delta: number) {
 }
 
 export default function Home() {
-  const [selectedMonthKey, setSelectedMonthKey] = useState(flujoData.summary[flujoData.summary.length - 1]?.key || '');
+  const lastActiveMonth = [...flujoData.summary].reverse().find((month) => month.totals.income || month.totals.pending || month.totals.expense || month.totals.utility || month.totals.periodBalance);
+  const [selectedMonthKey, setSelectedMonthKey] = useState(lastActiveMonth?.key || flujoData.summary[flujoData.summary.length - 1]?.key || '');
   const [activeTab, setActiveTab] = useState<TabKey>('resumen');
 
   const selectedMonth = useMemo<SummaryMonth | undefined>(
@@ -41,8 +42,9 @@ export default function Home() {
     [selectedMonthKey],
   );
 
-  const latest = flujoData.summary[flujoData.summary.length - 1];
-  const previous = flujoData.summary[flujoData.summary.length - 2];
+  const latest = lastActiveMonth || flujoData.summary[flujoData.summary.length - 1];
+  const latestIndex = flujoData.summary.findIndex((month) => month.key === latest?.key);
+  const previous = latestIndex > 0 ? flujoData.summary[latestIndex - 1] : undefined;
 
   const kpis = [
     {
@@ -241,7 +243,7 @@ export default function Home() {
                 <div className="text-sm text-slate-400">Vista operativa</div>
                 <h2 className="mt-1 text-2xl font-semibold">Movimientos relevantes</h2>
               </div>
-              <div className="text-sm text-slate-500">Muestra inicial de 120 registros normalizados</div>
+              <div className="text-sm text-slate-500">Muestra inicial de 150 registros normalizados</div>
             </div>
             <div className="mt-5 overflow-auto">
               <table className="min-w-full text-sm">
