@@ -15,7 +15,10 @@ async function getActivity() {
 }
 
 export default async function ActivityPage() {
-  const data = await getActivity();
+  let data: any = { status: { derived_state: 'available' }, recentEvents: [], staleMinutes: 20 };
+  try {
+    data = await getActivity();
+  } catch {}
   const status = data.status || {};
   const recentEvents = Array.isArray(data.recentEvents) ? data.recentEvents : [];
 
