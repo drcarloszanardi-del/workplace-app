@@ -168,6 +168,9 @@ export default function Home() {
                       <div className="mt-2 rounded-lg border border-white/10 bg-black/20 px-2.5 py-2 font-mono leading-5 text-amber-50/95">
                         npm run flujo:data:recalc-pending
                       </div>
+                      <div className="mt-2 text-[11px] text-amber-100/80">
+                        Equivale a <span className="font-mono">python3 scripts/build_flujo_data.py --recalc-pending-from-json</span> sobre el JSON actual, sin tocar Excel.
+                      </div>
                     </div>
                     {totalPending !== null ? (
                       <div className="mt-1 text-amber-100/90">

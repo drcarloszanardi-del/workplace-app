@@ -600,6 +600,24 @@ export default function ActivityPage() {
               NO: sin evidencia material reciente
             </span>
           </div>
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200/90">
+                Cuenta como evidencia material
+              </div>
+              <div className="mt-2 leading-6">
+                Cambio real en app, código, documento o PDF, más build o test OK, commit, push, deploy o entregable verificable.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200/90">
+                No cuenta como evidencia material
+              </div>
+              <div className="mt-2 leading-6">
+                Solo estado interno, logs, memoria, prioridades, decisiones o promesas sin validación verificable.
+              </div>
+            </div>
+          </div>
         </header>
 
         <section
@@ -696,9 +714,13 @@ export default function ActivityPage() {
                   <div className="mt-2 text-amber-50/80">
                     Si hace falta solo recomponer el saldo abierto antes de esa regeneración completa, usar
                     <code className="mx-1 rounded bg-black/20 px-1 py-0.5">
+                      npm run flujo:data:recalc-pending
+                    </code>
+                    (equivale a
+                    <code className="mx-1 rounded bg-black/20 px-1 py-0.5">
                       python3 scripts/build_flujo_data.py --recalc-pending-from-json
                     </code>
-                    sobre el JSON actual y luego validar con
+                    ) sobre el JSON actual y luego validar con
                     <code className="mx-1 rounded bg-black/20 px-1 py-0.5">
                       python3 -m json.tool src/data/flujo-fondos.json &gt;/dev/null
                     </code>

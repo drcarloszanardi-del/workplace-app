@@ -1,0 +1,50 @@
+{
+  "status": {
+    "derived_state": "repo_snapshot",
+    "truthSignal": "SI",
+    "truthReason": "Build OK, commit y push verificados para publicar el semáforo de actividad.",
+    "task": "APP-001",
+    "last_artifact": "/Users/jarvis/workplace-app/src/app/activity/page.tsx",
+    "last_evidence_at": "2026-05-01T12:16:30.000Z",
+    "evidence_class": "push",
+    "watchdog_truth_signal": "SI",
+    "watchdog_reason": "Snapshot saneado del repo para producción cuando Vercel no puede leer el workspace local.",
+    "last_material_artifact": "/Users/jarvis/workplace-app/src/app/activity/page.tsx",
+    "last_material_at": "2026-05-01T12:16:30.000Z",
+    "last_verified_artifact": "push main 4d961e8",
+    "last_verified_at": "2026-05-01T12:16:30.000Z",
+    "watchdog_commit_hash": "4d961e8",
+    "watchdog_commit_at": "2026-05-01T12:16:30.000Z",
+    "watchdog_push_at": "2026-05-01T12:16:30.000Z",
+    "watchdog_deploy_at": "",
+    "validation_gap": "ninguna, snapshot publicado para producción",
+    "evidence_age_minutes": 0,
+    "evidence_freshness": "fresh",
+    "build_needed": false,
+    "data_source_workbook": "snapshot_repo",
+    "data_generated_at": "2026-05-01T12:16:30.000Z",
+    "data_pending_source_label": "snapshot de producción activo",
+    "data_pending_source_note": "Cuando producción no puede leer el workspace local, muestra este snapshot saneado del repo.",
+    "data_pending_source_origin": "repo_snapshot",
+    "data_pending_source_reconstructed": false,
+    "data_pending_source_verified": true,
+    "data_total_pending": null,
+    "data_open_pending_count": null,
+    "admin_trail": "snapshot activity",
+    "admin_trail_at": "2026-05-01T12:16:30.000Z"
+  },
+  "recentEvents": [
+    {
+      "event": "push",
+      "state": "working",
+      "task": "APP-001",
+      "artifact": "/Users/jarvis/workplace-app/src/app/activity/page.tsx",
+      "note": "Build OK, commit 4d961e8 y push a main para publicar el semáforo de actividad.",
+      "ts": "2026-05-01T12:16:30.000Z",
+      "evidence_class": "push",
+      "commit_hash": "4d961e8"
+    }
+  ],
+  "staleMinutes": 20,
+  "watchdog": null
+}

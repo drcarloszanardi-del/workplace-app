@@ -2,13 +2,16 @@ import fs from 'fs/promises';
 import { NextResponse } from 'next/server';
 import { getMergedStatus } from '@/lib/workplace';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const workspaceRoot = process.env.WORKPLACE_SOURCE_ROOT || '/Users/jarvis/.openclaw/workspace';
 const statusPath = `${workspaceRoot}/CURRENT_STATUS.json`;
 const logPath = `${workspaceRoot}/ACTIVITY.log.jsonl`;
 const watchdogPath = `${workspaceRoot}/state/jarvis_watchdog/last_run.json`;
 const flujoFondosDataPath = `${process.cwd()}/src/data/flujo-fondos.json`;
+const activitySnapshotPath = `${process.cwd()}/src/data/activity-snapshot.json`;
 const staleMinutes = Number(process.env.JARVIS_ACTIVITY_STALE_MINUTES || 20);
 const adminArtifacts = new Set([
   'CURRENT_STATUS.json',
@@ -168,6 +171,15 @@ function safeParseJson(raw: string, fallback: any = null) {
     return JSON.parse(raw);
   } catch {
     return fallback;
+  }
+}
+
+async function readRepoSnapshot() {
+  try {
+    const raw = await fs.readFile(activitySnapshotPath, 'utf8');
+    return safeParseJson(raw, null);
+  } catch {
+    return null;
   }
 }
 
@@ -425,7 +437,7 @@ export async function GET() {
     const fallbackMaterialAt = fallbackMaterialArtifact ? status?.last_evidence_at || null : null;
     const datasetPendingSource = getDatasetPendingSource(flujoFondos);
 
-    return NextResponse.json({
+    const payload = {
       ok: true,
       status: {
         ...status,
@@ -474,6 +486,24 @@ export async function GET() {
       watchdog,
       recentEvents: events,
       staleMinutes,
+    };
+
+    const repoSnapshot = await readRepoSnapshot();
+    const statusLooksEmpty = !payload.status || (!payload.status.task && !payload.status.last_artifact && !payload.status.last_material_artifact);
+    const recentEventsLookEmpty = !Array.isArray(payload.recentEvents) || payload.recentEvents.length === 0;
+
+    if (repoSnapshot && statusLooksEmpty && recentEventsLookEmpty) {
+      return NextResponse.json(repoSnapshot, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      });
+    }
+
+    return NextResponse.json(payload, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
     });
   } catch (error) {
     return NextResponse.json(
