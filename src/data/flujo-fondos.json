@@ -2127,8 +2127,9 @@
     "clientsCount": 135,
     "categoriesCount": 29,
     "monthsCount": 29,
-    "openPendingCount": 11,
-    "totalDebt": 0.0
+    "openPendingCount": 9,
+    "totalDebt": 0.0,
+    "totalPending": 16723412.0
   },
   "highlights": {
     "topClients": [
@@ -5287,5 +5288,7 @@
       "balance": 0.0,
       "expense": 15500.0
     }
-  ]
+  ],
+  "pendingMetricsRecalculatedFromJsonAt": "2026-05-01T09:09:14.548203",
+  "pendingMetricsSource": "summary_totals_fallback"
 }

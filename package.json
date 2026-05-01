@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "flujo:data": "python3 scripts/build_flujo_data.py",
+    "flujo:data:recalc-pending": "python3 scripts/build_flujo_data.py --recalc-pending-from-json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.1",

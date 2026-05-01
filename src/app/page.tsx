@@ -32,6 +32,34 @@ function diffColor(delta: number) {
   return 'text-amber-300';
 }
 
+function hasNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function getDatasetFreshness(raw: string) {
+  const generatedAt = new Date(raw);
+  if (Number.isNaN(generatedAt.getTime())) {
+    return {
+      label: 'fecha de generación inválida',
+      isStale: true,
+    };
+  }
+
+  const ageHours = Math.floor((Date.now() - generatedAt.getTime()) / 3600000);
+  if (ageHours < 24) {
+    return {
+      label: 'dataset regenerado en las últimas 24 h',
+      isStale: false,
+    };
+  }
+
+  const ageDays = Math.floor(ageHours / 24);
+  return {
+    label: `dataset sin regenerar hace ${ageDays} día${ageDays === 1 ? '' : 's'}`,
+    isStale: true,
+  };
+}
+
 export default function Home() {
   const lastActiveMonth = [...flujoData.summary].reverse().find((month) => month.totals.income || month.totals.pending || month.totals.expense || month.totals.utility || month.totals.periodBalance);
   const [selectedMonthKey, setSelectedMonthKey] = useState(lastActiveMonth?.key || flujoData.summary[flujoData.summary.length - 1]?.key || '');
@@ -42,9 +70,32 @@ export default function Home() {
     [selectedMonthKey],
   );
 
+  const datasetFreshness = getDatasetFreshness(flujoData.generatedAt);
   const latest = lastActiveMonth || flujoData.summary[flujoData.summary.length - 1];
   const latestIndex = flujoData.summary.findIndex((month) => month.key === latest?.key);
   const previous = latestIndex > 0 ? flujoData.summary[latestIndex - 1] : undefined;
+  const totalPending = hasNumber(flujoData.metrics.totalPending) ? flujoData.metrics.totalPending : null;
+  const pendingCount = hasNumber(flujoData.metrics.openPendingCount) ? flujoData.metrics.openPendingCount : null;
+  const pendingMetricsSource = String(flujoData.pendingMetricsSource || '').trim();
+  const totalPendingLabel = totalPending === null ? 'pendiente de regenerar desde la planilla' : money(totalPending);
+  const totalPendingHelp = totalPending === null
+    ? 'falta regenerar flujo-fondos.json para exponer el saldo abierto total'
+    : pendingMetricsSource === 'records_preview_fallback'
+      ? pendingCount === null
+        ? 'saldo abierto reconstruido desde una vista parcial del JSON, pendiente confirmar cantidad exacta de movimientos'
+        : `${pendingCount} movimientos abiertos reconstruidos desde recordsPreview, pendiente validar contra Excel`
+      : pendingCount === null
+        ? 'saldo abierto reconstruido, pendiente confirmar cantidad exacta de movimientos'
+        : `${pendingCount} movimientos con saldo activo todavía sin cobrar`;
+  const pendingSourceLabel = totalPending === null
+    ? 'sin saldo reconstruido'
+    : pendingMetricsSource === 'summary_totals_fallback'
+      ? 'saldo abierto recompuesto desde el resumen mensual del JSON'
+      : pendingMetricsSource === 'records_preview_fallback'
+        ? 'saldo abierto recompuesto desde recordsPreview'
+        : datasetFreshness.isStale
+          ? 'saldo abierto validado, pero con dataset vencido'
+          : 'saldo abierto validado con la última regeneración';
 
   const kpis = [
     {
@@ -58,9 +109,9 @@ export default function Home() {
       help: latest?.label || '',
     },
     {
-      label: 'Pendiente de cobro',
-      value: money(latest?.totals.pending || 0),
-      help: `${flujoData.metrics.openPendingCount} movimientos con saldo`,
+      label: 'Saldo pendiente activo',
+      value: totalPendingLabel,
+      help: totalPendingHelp,
     },
     {
       label: 'Deuda registrada',
@@ -85,8 +136,47 @@ export default function Home() {
                 Construido a partir de {flujoData.sourceWorkbook}. Resume ingresos, pendientes, egresos, utilidades y saldo acumulado mes a mes.
               </p>
             </div>
-            <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100">
-              Generado: {new Date(flujoData.generatedAt).toLocaleString('es-AR')}
+            <div className={`rounded-2xl px-4 py-3 text-sm ${datasetFreshness.isStale ? 'border border-amber-400/30 bg-amber-400/10 text-amber-100' : 'border border-cyan-400/20 bg-cyan-400/10 text-cyan-100'}`}>
+              <div>Generado: {new Date(flujoData.generatedAt).toLocaleString('es-AR')}</div>
+              <div className="mt-1 text-xs opacity-80">{datasetFreshness.label}</div>
+              <div className="mt-2 inline-flex rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em]">
+                {pendingSourceLabel}
+              </div>
+              {datasetFreshness.isStale ? (
+                <div className="mt-2 space-y-2 text-xs font-medium">
+                  <div>
+                    {totalPending === null
+                      ? 'Pendiente regenerar desde Excel cuando se habilite openpyxl fuera del cron.'
+                      : pendingMetricsSource === 'summary_totals_fallback'
+                        ? 'Dataset desactualizado: el saldo abierto visible se recompuso desde el resumen mensual del JSON, pero todavía falta regenerar desde Excel para refrescar métricas y movimientos.'
+                        : pendingMetricsSource === 'records_preview_fallback'
+                          ? 'Dataset desactualizado: el saldo abierto visible se recompuso desde recordsPreview y necesita validación contra Excel apenas se pueda regenerar.'
+                          : 'Dataset desactualizado: regenerar desde Excel fuera del cron para refrescar métricas y movimientos, pero el saldo abierto visible ya quedó reconstruido desde el JSON.'}
+                  </div>
+                  <div className="rounded-xl border border-amber-300/20 bg-black/10 px-3 py-2 text-amber-50">
+                    <div className="text-[11px] uppercase tracking-[0.16em] text-amber-200/80">Acción recomendada</div>
+                    <div className="mt-1">Rehacer <span className="font-semibold">src/data/flujo-fondos.json</span> fuera del cron para confirmar el saldo pendiente.</div>
+                    <div className="mt-2 rounded-lg border border-white/10 bg-black/20 px-2.5 py-2 font-mono text-[11px] leading-5 text-amber-50/95">
+                      python3 -m venv .venv && .venv/bin/python -m pip install openpyxl && .venv/bin/python scripts/build_flujo_data.py
+                    </div>
+                    <div className="mt-1 text-[11px] text-amber-100/80">
+                      Regeneración completa sugerida por Codex para correr fuera del microciclo. No commitear <span className="font-semibold">.venv</span>.
+                    </div>
+                    <div className="mt-2 rounded-xl border border-amber-300/15 bg-black/10 px-3 py-2 text-[11px] text-amber-100/90">
+                      <div className="uppercase tracking-[0.16em] text-amber-200/80">Fallback corto</div>
+                      <div className="mt-1">Si solo hace falta recomponer el saldo abierto sin tocar Excel, correr:</div>
+                      <div className="mt-2 rounded-lg border border-white/10 bg-black/20 px-2.5 py-2 font-mono leading-5 text-amber-50/95">
+                        npm run flujo:data:recalc-pending
+                      </div>
+                    </div>
+                    {totalPending !== null ? (
+                      <div className="mt-1 text-amber-100/90">
+                        Saldo abierto visible hoy: <span className="font-semibold">{money(totalPending)}</span>{pendingCount === null ? ' con cantidad de movimientos pendiente de confirmación.' : <> sobre {pendingCount} movimiento{pendingCount === 1 ? '' : 's'}.</>}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -96,6 +186,36 @@ export default function Home() {
                 <div className="text-sm text-slate-400">{item.label}</div>
                 <div className="mt-3 text-3xl font-semibold">{item.value}</div>
                 <div className="mt-2 text-xs text-slate-500">{item.help}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: 'Registros normalizados', value: flujoData.metrics.recordCount, help: 'filas útiles procesadas' },
+              { label: 'Clientes detectados', value: flujoData.metrics.clientsCount, help: 'clientes únicos en la base' },
+              { label: 'Rubros activos', value: flujoData.metrics.categoriesCount, help: 'categorías con movimiento' },
+              { label: 'Meses cubiertos', value: flujoData.metrics.monthsCount, help: 'ventana histórica disponible' },
+            ].map((item) => (
+              <div key={item.label} className="rounded-2xl border border-white/10 bg-[#091427] p-4">
+                <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{item.label}</div>
+                <div className="mt-2 text-2xl font-semibold text-cyan-100">{item.value}</div>
+                <div className="mt-1 text-xs text-slate-500">{item.help}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: 'Último mes con movimiento', value: latest?.label || 'sin dato', help: 'último cierre detectado con actividad' },
+              { label: 'Saldo abierto total', value: totalPendingLabel, help: totalPendingHelp },
+              { label: 'Deuda total registrada', value: money(flujoData.metrics.totalDebt || 0), help: `${flujoData.debts.length} conceptos abiertos` },
+              { label: 'Desvío acumulado vs Excel', value: money(selectedMonth ? selectedMonth.totals.accumulatedBalance - selectedMonth.excelCheck.accumulatedBalance : 0), help: selectedMonth ? `control del mes ${selectedMonth.label}` : 'sin mes seleccionado' },
+            ].map((item) => (
+              <div key={item.label} className="rounded-2xl border border-cyan-400/10 bg-[#081326] p-4">
+                <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{item.label}</div>
+                <div className="mt-2 text-2xl font-semibold text-cyan-100">{item.value}</div>
+                <div className="mt-1 break-words text-xs text-slate-500">{item.help}</div>
               </div>
             ))}
           </div>

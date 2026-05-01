@@ -1,15 +1,89 @@
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from openpyxl import load_workbook
+
+def recalc_pending_metrics_from_json(output_path: Path) -> bool:
+    if '--recalc-pending-from-json' not in sys.argv:
+        return False
+
+    if not output_path.exists():
+        raise SystemExit(
+            f"Fallback requested but JSON not found: {output_path}. Restore src/data/flujo-fondos.json before using --recalc-pending-from-json."
+        )
+
+    payload = json.loads(output_path.read_text(encoding='utf8'))
+    summary = payload.get('summary')
+    summary_has_totals = isinstance(summary, list) and all(
+        isinstance(item, dict) and isinstance(item.get('totals'), dict) for item in summary
+    )
+    records = payload.get('recordsPreview')
+
+    if not summary_has_totals and not isinstance(records, list):
+        raise SystemExit(
+            'Fallback requested but src/data/flujo-fondos.json has neither summary totals nor a valid recordsPreview to rebuild pending metrics.'
+        )
+
+    metrics = payload.setdefault('metrics', {})
+    if summary_has_totals:
+        total_pending = round(
+            sum(float(item['totals'].get('pending') or 0) for item in summary),
+            2,
+        )
+        payload['pendingMetricsSource'] = 'summary_totals_fallback'
+        # recordsPreview is capped, so it cannot safely rebuild openPendingCount.
+        # Preserve the existing count unless a future fallback includes full records.
+    else:
+        open_pending = sum(1 for item in records if float(item.get('pending') or 0) > 0)
+        total_pending = round(sum(float(item.get('pending') or 0) for item in records if float(item.get('pending') or 0) > 0), 2)
+        metrics['openPendingCount'] = open_pending
+        payload['pendingMetricsSource'] = 'records_preview_fallback'
+    metrics['totalPending'] = total_pending
+    payload['pendingMetricsRecalculatedFromJsonAt'] = datetime.now().isoformat()
+    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf8')
+    print(f'Updated pending metrics in {output_path}')
+    return True
+
+
+def load_openpyxl_workbook():
+    try:
+        from openpyxl import load_workbook
+    except ModuleNotFoundError as exc:
+        missing = exc.name or 'openpyxl'
+        raise SystemExit(
+            f"Missing dependency: {missing}. Run `python3 -m venv /Users/jarvis/workplace-app/.venv && /Users/jarvis/workplace-app/.venv/bin/python -m pip install openpyxl && /Users/jarvis/workplace-app/.venv/bin/python scripts/build_flujo_data.py` outside the 5-minute cron, and do not commit `.venv/`. If that is not possible, update src/data/flujo-fondos.json manually only for metrics.totalPending as a temporary fallback. After that, validate with `python3 -m json.tool src/data/flujo-fondos.json >/dev/null` and inspect `git diff -- src/data/flujo-fondos.json scripts/build_flujo_data.py`."
+        ) from exc
+    return load_workbook
 
 ROOT = Path('/Users/jarvis/workplace-app')
 SOURCE = Path('/Users/jarvis/.openclaw/media/inbound/Flujo_de_Fondos_2026---5877ca3e-5fba-478c-bd25-d3518ab72ad8.xlsx')
 OUTPUT = ROOT / 'src' / 'data' / 'flujo-fondos.json'
+USAGE = f"""Usage:
+  python3 scripts/build_flujo_data.py
+  python3 scripts/build_flujo_data.py --recalc-pending-from-json
+
+Notes:
+- Full regeneration reads {SOURCE.name} and requires openpyxl.
+- The fallback flag recalculates metrics.totalPending from the existing JSON, prefers summary totals when present, and leaves generatedAt untouched so the dashboard still shows that a full Excel regeneration is pending.
+- The fallback only refreshes openPendingCount when summary totals are unavailable and the JSON must be rebuilt from recordsPreview.
+- Do not run the full regeneration inside the 5-minute cron worker.
+"""
+
+if '--help' in sys.argv or '-h' in sys.argv:
+    print(USAGE)
+    raise SystemExit(0)
+
+if recalc_pending_metrics_from_json(OUTPUT):
+    raise SystemExit(0)
+
+if not SOURCE.exists():
+    raise SystemExit(
+        f"Workbook not found: {SOURCE}. Restore the original Excel in that path before regenerating src/data/flujo-fondos.json, or update only metrics.totalPending manually as a temporary fallback."
+    )
 
 MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
@@ -36,6 +110,7 @@ def as_date(value: Any) -> str | None:
     return None
 
 
+load_workbook = load_openpyxl_workbook()
 wb_values = load_workbook(SOURCE, data_only=True)
 wb_formulas = load_workbook(SOURCE, data_only=False)
 
@@ -129,7 +204,8 @@ for month in month_columns:
     })
 
 sorted_records = sorted(records, key=lambda item: ((item['date'] or ''), item['id']), reverse=True)
-open_pending = sum(1 for item in records if item['balance'] > 0)
+open_pending = sum(1 for item in records if item['pending'] > 0)
+total_pending = round(sum(item['pending'] for item in records if item['pending'] > 0), 2)
 clients = len({item['client'] for item in records if item['client']})
 categories = len({item['category'] for item in records if item['category']})
 
@@ -171,6 +247,7 @@ output = {
         'categoriesCount': categories,
         'monthsCount': len(summary),
         'openPendingCount': open_pending,
+        'totalPending': total_pending,
         'totalDebt': round(sum(item['amount'] for item in debts), 2),
     },
     'highlights': {
