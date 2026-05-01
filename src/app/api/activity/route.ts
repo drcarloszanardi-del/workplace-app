@@ -198,6 +198,8 @@ function getEvidenceAgeMinutes(raw?: string) {
 function getDatasetPendingSource(flujoFondos: any) {
   const generatedAt = parseDate(flujoFondos?.generatedAt);
   const pendingRecalculatedAt = parseDate(flujoFondos?.pendingMetricsRecalculatedFromJsonAt);
+  const pendingMetricsSource = String(flujoFondos?.pendingMetricsSource || '').trim();
+  const pendingMetricsRecalculatedFromJsonAt = String(flujoFondos?.pendingMetricsRecalculatedFromJsonAt || '').trim();
   const metricsPending = flujoFondos?.metrics?.totalPending;
   const derivedPending = Array.isArray(flujoFondos?.summary)
     ? flujoFondos.summary.reduce((acc: number, month: any) => {
@@ -227,7 +229,9 @@ function getDatasetPendingSource(flujoFondos: any) {
         : null;
   const hasPending = typeof totalPending === 'number' && Number.isFinite(totalPending);
   const fallbackRecalculated = Boolean(pendingRecalculatedAt);
-  const usingDerivedPending = (metricsLooksInconsistent || !metricsPendingIsValid || fallbackRecalculated) && hasPending;
+  const sourceUsesSummaryFallback = pendingMetricsSource === 'summary_totals_fallback';
+  const sourceUsesRecordsPreviewFallback = pendingMetricsSource === 'records_preview_fallback';
+  const usingDerivedPending = (metricsLooksInconsistent || !metricsPendingIsValid || fallbackRecalculated || sourceUsesSummaryFallback || sourceUsesRecordsPreviewFallback) && hasPending;
   const staleHours = generatedAt
     ? Math.max(0, Math.round((Date.now() - generatedAt.getTime()) / 3600000))
     : null;
@@ -249,36 +253,45 @@ function getDatasetPendingSource(flujoFondos: any) {
   return {
     data_pending_source_label: stale
       ? 'saldo abierto visible, pero sostenido por un dataset vencido'
-      : fallbackRecalculated
-        ? 'saldo abierto recompuesto desde el JSON visible, con regeneración completa todavía pendiente'
-        : usingDerivedPending
-          ? 'saldo abierto reconstruido desde el JSON visible'
-          : 'saldo abierto validado con la última regeneración',
+      : sourceUsesRecordsPreviewFallback
+        ? 'saldo abierto recompuesto desde recordsPreview'
+        : fallbackRecalculated || sourceUsesSummaryFallback
+          ? 'saldo abierto recompuesto desde el JSON visible, con regeneración completa todavía pendiente'
+          : usingDerivedPending
+            ? 'saldo abierto reconstruido desde el JSON visible'
+            : 'saldo abierto validado con la última regeneración',
     data_pending_source_note: stale
       ? metricsLooksInconsistent
         ? 'metrics.totalPending vino en cero aunque hay pendientes abiertos. El tablero muestra el monto recomponiéndolo desde pendingByCategory del JSON actual, pero sigue haciendo falta regenerar src/data/flujo-fondos.json desde Excel fuera del cron.'
-        : 'El saldo pendiente visible sale del JSON actual. Sirve para mostrar el monto, pero queda pendiente regenerar src/data/flujo-fondos.json desde Excel fuera del cron.'
-      : fallbackRecalculated
-        ? 'Se recompuso metrics.totalPending desde el JSON actual sin releer el Excel. Sirve para destrabar el tablero, pero la regeneración completa de src/data/flujo-fondos.json sigue pendiente fuera del cron.'
-        : metricsLooksInconsistent
-          ? 'metrics.totalPending vino en cero aunque hay pendientes abiertos y el tablero recompuso el monto sumando pendingByCategory del JSON actual.'
-          : usingDerivedPending
-            ? 'metrics.totalPending no estaba disponible y el tablero recompuso el monto sumando pendingByCategory del JSON actual.'
-            : 'Saldo pendiente visible alineado con la última regeneración disponible.',
-    data_pending_source_origin: stale ? (metricsLooksInconsistent ? 'stale_json_inconsistent_metrics' : 'stale_json') : fallbackRecalculated ? 'json_pending_recalc_fallback' : usingDerivedPending ? 'summary_fallback' : 'metrics_total_pending',
+        : sourceUsesRecordsPreviewFallback
+          ? 'El saldo pendiente visible se recompuso desde recordsPreview del JSON actual. Sirve para mostrar el monto, pero queda pendiente regenerar src/data/flujo-fondos.json desde Excel fuera del cron.'
+          : 'El saldo pendiente visible sale del JSON actual. Sirve para mostrar el monto, pero queda pendiente regenerar src/data/flujo-fondos.json desde Excel fuera del cron.'
+      : sourceUsesRecordsPreviewFallback
+        ? 'Se recompuso metrics.totalPending desde recordsPreview del JSON actual sin releer el Excel. Sirve para destrabar el tablero, pero la regeneración completa de src/data/flujo-fondos.json sigue pendiente fuera del cron.'
+        : fallbackRecalculated || sourceUsesSummaryFallback
+          ? 'Se recompuso metrics.totalPending desde el JSON actual sin releer el Excel. Sirve para destrabar el tablero, pero la regeneración completa de src/data/flujo-fondos.json sigue pendiente fuera del cron.'
+          : metricsLooksInconsistent
+            ? 'metrics.totalPending vino en cero aunque hay pendientes abiertos y el tablero recompuso el monto sumando pendingByCategory del JSON actual.'
+            : usingDerivedPending
+              ? 'metrics.totalPending no estaba disponible y el tablero recompuso el monto sumando pendingByCategory del JSON actual.'
+              : 'Saldo pendiente visible alineado con la última regeneración disponible.',
+    data_pending_source_origin: stale ? (metricsLooksInconsistent ? 'stale_json_inconsistent_metrics' : sourceUsesRecordsPreviewFallback ? 'stale_records_preview_fallback' : 'stale_json') : sourceUsesRecordsPreviewFallback ? 'records_preview_fallback' : (fallbackRecalculated || sourceUsesSummaryFallback) ? 'json_pending_recalc_fallback' : usingDerivedPending ? 'summary_fallback' : 'metrics_total_pending',
     data_pending_source_reconstructed: usingDerivedPending,
+    data_pending_source_recalculated_at: pendingMetricsRecalculatedFromJsonAt || null,
     data_total_pending: totalPending,
     data_open_pending_count: typeof openPendingCount === 'number' ? openPendingCount : null,
     data_pending_source_stale_hours: staleHours,
-    data_pending_source_verified: !stale && !fallbackRecalculated,
-    data_needs_regeneration: stale || metricsLooksInconsistent || fallbackRecalculated,
+    data_pending_source_verified: !stale && !fallbackRecalculated && !sourceUsesSummaryFallback && !sourceUsesRecordsPreviewFallback,
+    data_needs_regeneration: stale || metricsLooksInconsistent || fallbackRecalculated || sourceUsesSummaryFallback || sourceUsesRecordsPreviewFallback,
     data_regeneration_reason: stale
       ? 'La última regeneración visible supera 24 horas y conviene rehacer src/data/flujo-fondos.json fuera del cron.'
-      : fallbackRecalculated
-        ? 'Se recompuso metrics.totalPending desde el JSON actual, pero todavía falta regenerar src/data/flujo-fondos.json desde Excel fuera del cron.'
-        : metricsLooksInconsistent
-          ? 'metrics.totalPending quedó inconsistente frente a pendingByCategory y conviene regenerar src/data/flujo-fondos.json fuera del cron.'
-          : '',
+      : sourceUsesRecordsPreviewFallback
+        ? 'Se recompuso metrics.totalPending desde recordsPreview del JSON actual, pero todavía falta regenerar src/data/flujo-fondos.json desde Excel fuera del cron.'
+        : fallbackRecalculated || sourceUsesSummaryFallback
+          ? 'Se recompuso metrics.totalPending desde el JSON actual, pero todavía falta regenerar src/data/flujo-fondos.json desde Excel fuera del cron.'
+          : metricsLooksInconsistent
+            ? 'metrics.totalPending quedó inconsistente frente a pendingByCategory y conviene regenerar src/data/flujo-fondos.json fuera del cron.'
+            : '',
   };
 }
 
@@ -399,7 +412,12 @@ export async function GET() {
     const evidenceAgeMinutes = getEvidenceAgeMinutes(status?.last_evidence_at);
     const evidenceIsFresh = evidenceAgeMinutes != null && evidenceAgeMinutes <= staleMinutes;
     const watchdogReason = String(watchdog?.reason || '').toLowerCase();
-    const shouldPreferDerivedTruth = derivedTruth.truthSignal === 'SI' && watchdogSignal !== 'SI';
+    const watchdogArtifact = String(watchdog?.artifact || '').trim();
+    const watchdogArtifactIsAdministrative = isAdministrativeArtifact(watchdogArtifact);
+    const shouldPreferDerivedTruth =
+      (derivedTruth.truthSignal === 'SI' && watchdogSignal !== 'SI') ||
+      (watchdogSignal === 'SI' &&
+        (derivedTruth.truthSignal !== 'SI' || watchdogArtifactIsAdministrative));
     const truth = watchdog && watchdogSignal !== 'NO_DATA' && evidenceIsFresh && !shouldPreferDerivedTruth ? {
       truthSignal: watchdog.truth_signal,
       truthColor: watchdog.truth_color,

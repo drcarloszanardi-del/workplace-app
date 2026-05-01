@@ -252,6 +252,9 @@ function getPendingSourceSummary(status: Record<string, any>) {
       ? status.data_pending_source_stale_hours
       : null;
   const verified = Boolean(status.data_pending_source_verified);
+  const recalculatedAt = String(
+    status.data_pending_source_recalculated_at || "",
+  ).trim();
   const totalPending =
     typeof status.data_total_pending === "number"
       ? status.data_total_pending.toLocaleString("es-AR", {
@@ -265,13 +268,17 @@ function getPendingSourceSummary(status: Record<string, any>) {
       ? " · monto recompuesto desde pendingByCategory"
       : origin === "json_pending_recalc_fallback"
         ? " · monto recompuesto desde el JSON actual"
-        : origin === "metrics_total_pending"
-          ? " · monto leído desde metrics.totalPending"
-          : origin === "stale_json" || origin === "stale_json_inconsistent_metrics"
-            ? " · monto visible en JSON vencido"
-            : reconstructed
-              ? " · monto recompuesto desde pendingByCategory"
-              : "";
+        : origin === "records_preview_fallback"
+          ? " · monto recompuesto desde recordsPreview del JSON actual"
+          : origin === "metrics_total_pending"
+            ? " · monto leído desde metrics.totalPending"
+            : origin === "stale_records_preview_fallback"
+              ? " · monto visible en recordsPreview de un JSON vencido"
+              : origin === "stale_json" || origin === "stale_json_inconsistent_metrics"
+                ? " · monto visible en JSON vencido"
+                : reconstructed
+                  ? " · monto recompuesto desde pendingByCategory"
+                  : "";
   const countLabel =
     openPendingCount == null
       ? ""
@@ -283,13 +290,18 @@ function getPendingSourceSummary(status: Record<string, any>) {
       : verified
         ? ` · regenerado hace ${staleHours} h`
         : ` · última regeneración hace ${staleHours} h`;
+  const fallbackStamp =
+    recalculatedAt && !verified
+      ? ` · fallback recalculado ${fmt(recalculatedAt)}`
+      : "";
   if (label && note)
-    return `${label}${originLabel}${countLabel}${amountLabel}${freshnessLabel} · ${note}`;
-  if (label) return `${label}${originLabel}${countLabel}${amountLabel}${freshnessLabel}`;
+    return `${label}${originLabel}${countLabel}${amountLabel}${freshnessLabel}${fallbackStamp} · ${note}`;
+  if (label)
+    return `${label}${originLabel}${countLabel}${amountLabel}${freshnessLabel}${fallbackStamp}`;
   if (note)
     return totalPending !== null
-      ? `${totalPending}${originLabel}${freshnessLabel} · ${note}`
-      : `${note}${originLabel}${freshnessLabel}`;
+      ? `${totalPending}${originLabel}${freshnessLabel}${fallbackStamp} · ${note}`
+      : `${note}${originLabel}${freshnessLabel}${fallbackStamp}`;
   return totalPending ?? "sin saldo pendiente clasificado";
 }
 
@@ -302,15 +314,50 @@ function getPendingSourceAction(status: Record<string, any>) {
       : null;
 
   if (verified) return "sin acción manual inmediata";
-  if (origin === "json_pending_recalc_fallback") {
-    return "pendiente regenerar el dataset completo fuera del cron con .venv + openpyxl";
+  if (
+    origin === "json_pending_recalc_fallback" ||
+    origin === "records_preview_fallback"
+  ) {
+    return "si hace falta un paso corto ahora, correr npm run flujo:data:recalc-pending; la regeneración completa con .venv + openpyxl queda fuera del cron";
   }
-  if (origin === "stale_json" || origin === "stale_json_inconsistent_metrics") {
+  if (
+    origin === "stale_json" ||
+    origin === "stale_json_inconsistent_metrics" ||
+    origin === "stale_records_preview_fallback"
+  ) {
     return staleHours != null && staleHours > 24
-      ? "dataset vencido: regenerar flujo-fondos.json fuera del cron"
-      : "revisar si el saldo visible sigue apoyado en un JSON vencido";
+      ? "dataset vencido: usar npm run flujo:data:recalc-pending solo como paso corto y dejar la regeneración completa fuera del cron"
+      : "revisar si el saldo visible sigue apoyado en un JSON vencido y, si hace falta un paso corto, usar npm run flujo:data:recalc-pending";
   }
   return "si hace falta validar el saldo, usar la guía docs/flujo-data-regeneration.md";
+}
+
+function getPendingSourceCommand(status: Record<string, any>) {
+  const verified = Boolean(status.data_pending_source_verified);
+  const origin = String(status.data_pending_source_origin || "").trim();
+
+  if (verified) return null;
+  if (
+    origin === "json_pending_recalc_fallback" ||
+    origin === "records_preview_fallback" ||
+    origin === "stale_json" ||
+    origin === "stale_json_inconsistent_metrics" ||
+    origin === "stale_records_preview_fallback"
+  ) {
+    return [
+      "npm run flujo:data:recalc-pending",
+      "python3 -m json.tool src/data/flujo-fondos.json >/dev/null",
+      "git diff -- src/data/flujo-fondos.json scripts/build_flujo_data.py",
+    ].join("\n");
+  }
+
+  return [
+    "python3 -m venv .venv",
+    ".venv/bin/python -m pip install openpyxl",
+    ".venv/bin/python scripts/build_flujo_data.py",
+    "python3 -m json.tool src/data/flujo-fondos.json >/dev/null",
+    "git diff -- src/data/flujo-fondos.json scripts/build_flujo_data.py",
+  ].join("\n");
 }
 
 function getAdministrativeSummary(status: Record<string, any>) {
@@ -351,10 +398,16 @@ function getNextOperationalStep(
   const hasVisiblePendingAmount = typeof status.data_total_pending === "number";
   if (truthSignal.label === "DUDOSO") {
     if (needsRegeneration) {
+      const origin = String(status.data_pending_source_origin || "").trim();
+      const fallbackHint =
+        origin === "records_preview_fallback" ||
+        origin === "stale_records_preview_fallback"
+          ? "Si no entra una regeneración completa en este microciclo, el saldo puede seguir visible desde recordsPreview, pero hace falta regenerar src/data/flujo-fondos.json fuera del cron antes de marcar SI."
+          : "Si no entra una regeneración completa en este microciclo, usar solo npm run flujo:data:recalc-pending para recomputar el saldo sobre src/data/flujo-fondos.json.";
       const baseReason =
         regenerationReason ||
         "El dataset visible quedó vencido y conviene regenerarlo fuera del cron antes de marcar SI.";
-      return `${baseReason} Si no entra una regeneración completa en este microciclo, usar solo python3 scripts/build_flujo_data.py --recalc-pending-from-json sobre src/data/flujo-fondos.json. Para regenerar completo afuera del cron, usar python3 -m venv /Users/jarvis/workplace-app/.venv && /Users/jarvis/workplace-app/.venv/bin/python -m pip install openpyxl && /Users/jarvis/workplace-app/.venv/bin/python scripts/build_flujo_data.py antes de validar.`;
+      return `${baseReason} ${fallbackHint} Para regenerar completo afuera del cron, usar python3 -m venv /Users/jarvis/workplace-app/.venv && /Users/jarvis/workplace-app/.venv/bin/python -m pip install openpyxl && /Users/jarvis/workplace-app/.venv/bin/python scripts/build_flujo_data.py antes de validar.`;
     }
     if (
       pendingArtifact.includes("scripts/build_flujo_data.py") ||
@@ -363,7 +416,7 @@ function getNextOperationalStep(
       if (hasVisiblePendingAmount) {
         return `El saldo pendiente ya está visible en ${pendingArtifact}. Falta una validación verificable antes de marcar SI.`;
       }
-      return `Falta una validación verificable para ${pendingArtifact}. Si regenerar desde Excel no entra en este microciclo, dejar build_needed y usar solo python3 scripts/build_flujo_data.py --recalc-pending-from-json sobre src/data/flujo-fondos.json. Para regenerar completo afuera del cron, usar python3 -m venv /Users/jarvis/workplace-app/.venv && /Users/jarvis/workplace-app/.venv/bin/python -m pip install openpyxl && /Users/jarvis/workplace-app/.venv/bin/python scripts/build_flujo_data.py antes de validar.`;
+      return `Falta una validación verificable para ${pendingArtifact}. Si regenerar desde Excel no entra en este microciclo, dejar build_needed y usar solo npm run flujo:data:recalc-pending sobre src/data/flujo-fondos.json. Para regenerar completo afuera del cron, usar python3 -m venv /Users/jarvis/workplace-app/.venv && /Users/jarvis/workplace-app/.venv/bin/python -m pip install openpyxl && /Users/jarvis/workplace-app/.venv/bin/python scripts/build_flujo_data.py antes de validar.`;
     }
     return pendingArtifact
       ? `Falta una validación verificable para ${pendingArtifact}. Si el build completo no entra en este microciclo, registrar build_needed y validar afuera del cron.`
@@ -573,6 +626,8 @@ export default function ActivityPage() {
     ? data.recentEvents
     : [];
   const truthSignal = deriveTruthSignal(status, data.staleMinutes || 20);
+  const pendingSourceVerified = Boolean(status.data_pending_source_verified);
+  const pendingSourceCommand = getPendingSourceCommand(status);
 
   return (
     <main className="min-h-screen bg-[#07111f] px-6 py-8 text-slate-100">
@@ -629,6 +684,9 @@ export default function ActivityPage() {
           <div className="mt-2 text-xs text-current/80">
             Referencia del semáforo: Trabajando de verdad: SI / NO / DUDOSO
           </div>
+          <div className="mt-2 text-xs text-current/70">
+            Esta vista se actualiza sola cada 30 segundos para reflejar evidencia local reciente.
+          </div>
           <div className="mt-3 text-4xl font-semibold">{truthSignal.label}</div>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-current/90">
             {truthSignal.reason}
@@ -660,6 +718,9 @@ export default function ActivityPage() {
               Antigüedad del dataset: {getDatasetFreshnessSummary(status)}
             </span>
             <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Regeneración pendiente: {fmtBoolean(status.data_needs_regeneration, "sí", "no")}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
               Origen del saldo pendiente: {getPendingSourceSummary(status)}
             </span>
             <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
@@ -673,6 +734,32 @@ export default function ActivityPage() {
               {fmtBoolean(status.build_needed, "pendiente", "no requerido")}
             </span>
           </div>
+          {!pendingSourceVerified ? (
+            <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-500/10 p-4 text-sm leading-6 text-amber-100">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-50/90">
+                Saldo pendiente visible, pero no validado desde Excel fresco
+              </div>
+              <div className="mt-2">
+                El monto puede estar visible en pantalla, pero por ahora se apoya en el JSON actual o en una reconstrucción local. No debe leerse como validación fresca desde el Excel hasta regenerar el dataset fuera del cron.
+              </div>
+              <div className="mt-2 text-xs text-amber-50/80">
+                Estado actual: {getPendingSourceSummary(status)}
+              </div>
+              <div className="mt-2 text-xs text-amber-50/80">
+                Acción recomendada: {getPendingSourceAction(status)}
+              </div>
+              {pendingSourceCommand ? (
+                <div className="mt-3 rounded-xl border border-amber-300/15 bg-black/15 p-3 text-[11px] text-amber-50/90">
+                  <div className="uppercase tracking-[0.16em] text-amber-200/80">
+                    Comando sugerido fuera del cron
+                  </div>
+                  <pre className="mt-2 overflow-x-auto whitespace-pre-wrap font-mono leading-5 text-amber-50/95">
+                    {pendingSourceCommand}
+                  </pre>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {truthSignal.label !== "SI" ? (
             <div className="mt-5 rounded-2xl border border-current/20 bg-black/15 p-4 text-sm text-current/95">
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-current/80">
@@ -720,15 +807,32 @@ export default function ActivityPage() {
                     <code className="mx-1 rounded bg-black/20 px-1 py-0.5">
                       python3 scripts/build_flujo_data.py --recalc-pending-from-json
                     </code>
-                    ) sobre el JSON actual y luego validar con
-                    <code className="mx-1 rounded bg-black/20 px-1 py-0.5">
-                      python3 -m json.tool src/data/flujo-fondos.json &gt;/dev/null
-                    </code>
-                    y
-                    <code className="mx-1 rounded bg-black/20 px-1 py-0.5">
-                      git diff --check -- src/data/flujo-fondos.json scripts/build_flujo_data.py
-                    </code>
-                    .
+                    ) sobre el JSON actual.
+                  </div>
+                  <div className="mt-3 rounded-2xl border border-amber-200/15 bg-black/15 p-3 text-amber-50/90">
+                    <div className="font-semibold uppercase tracking-[0.2em] text-amber-100/90">
+                      Validación liviana antes de marcar avance real
+                    </div>
+                    <div className="mt-2">
+                      Si el microciclo no permite regenerar desde Excel, al menos conviene dejar verificable el paso corto sobre el JSON actual.
+                    </div>
+                    <ul className="mt-2 list-disc space-y-2 pl-5">
+                      <li>
+                        <code className="rounded bg-black/20 px-1 py-0.5">
+                          python3 -m json.tool src/data/flujo-fondos.json &gt;/dev/null
+                        </code>
+                      </li>
+                      <li>
+                        <code className="rounded bg-black/20 px-1 py-0.5">
+                          grep -n '"totalPending"' src/data/flujo-fondos.json
+                        </code>
+                      </li>
+                      <li>
+                        <code className="rounded bg-black/20 px-1 py-0.5">
+                          git diff -- src/data/flujo-fondos.json scripts/build_flujo_data.py
+                        </code>
+                      </li>
+                    </ul>
                   </div>
                 </div>
               ) : null}
@@ -860,6 +964,10 @@ export default function ActivityPage() {
             ["Último entregable verificable", getDeliverableSummary(status)],
             ["Dataset visible", getDataSourceSummary(status)],
             ["Antigüedad del dataset", getDatasetFreshnessSummary(status)],
+            [
+              "Regeneración pendiente",
+              fmtBoolean(status.data_needs_regeneration, "sí", "no"),
+            ],
             ["Origen del saldo pendiente", getPendingSourceSummary(status)],
             ["Antigüedad de evidencia", getEvidenceFreshnessSummary(status)],
             [

@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import flujoData from '@/data/flujo-fondos.json';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type SummaryMonth = (typeof flujoData.summary)[number];
 
@@ -60,10 +61,64 @@ function getDatasetFreshness(raw: string) {
   };
 }
 
+type ActivityStatusSnapshot = {
+  truth_label?: string;
+  truth_reason?: string;
+  truthSignal?: string;
+  truthReason?: string;
+  last_material_artifact?: string;
+  last_material_at?: string;
+  last_verified_artifact?: string;
+  last_verified_at?: string;
+  admin_trail?: string;
+  admin_trail_at?: string;
+  validation_gap?: string;
+  data_pending_source_origin?: string;
+  data_pending_source_verified?: boolean;
+};
+
+function fmtDateTime(raw?: string) {
+  if (!raw) return 'sin fecha';
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleString('es-AR');
+}
+
+function truthTone(label?: string) {
+  if (label === 'SI') return 'border-emerald-300/30 bg-emerald-500/10 text-emerald-50';
+  if (label === 'NO') return 'border-rose-300/30 bg-rose-500/10 text-rose-50';
+  return 'border-amber-300/30 bg-amber-500/10 text-amber-50';
+}
+
+function getTruthLabel(status: ActivityStatusSnapshot | null) {
+  return status?.truth_label || status?.truthSignal || 'DUDOSO';
+}
+
+function getTruthReason(status: ActivityStatusSnapshot | null) {
+  return status?.truth_reason || status?.truthReason || '';
+}
+
 export default function Home() {
   const lastActiveMonth = [...flujoData.summary].reverse().find((month) => month.totals.income || month.totals.pending || month.totals.expense || month.totals.utility || month.totals.periodBalance);
   const [selectedMonthKey, setSelectedMonthKey] = useState(lastActiveMonth?.key || flujoData.summary[flujoData.summary.length - 1]?.key || '');
   const [activeTab, setActiveTab] = useState<TabKey>('resumen');
+  const [activityStatus, setActivityStatus] = useState<ActivityStatusSnapshot | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadActivity = async () => {
+      try {
+        const res = await fetch('/api/activity', { cache: 'no-store' });
+        if (!res.ok) return;
+        const next = await res.json();
+        if (!cancelled) setActivityStatus(next?.status || null);
+      } catch {}
+    };
+    void loadActivity();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selectedMonth = useMemo<SummaryMonth | undefined>(
     () => flujoData.summary.find((item) => item.key === selectedMonthKey),
@@ -77,6 +132,23 @@ export default function Home() {
   const totalPending = hasNumber(flujoData.metrics.totalPending) ? flujoData.metrics.totalPending : null;
   const pendingCount = hasNumber(flujoData.metrics.openPendingCount) ? flujoData.metrics.openPendingCount : null;
   const pendingMetricsSource = String(flujoData.pendingMetricsSource || '').trim();
+  const pendingMetricsRecalculatedAt = String(flujoData.pendingMetricsRecalculatedFromJsonAt || '').trim();
+  const pendingBalanceTransparencyLabel = totalPending === null
+    ? 'saldo pendiente no visible todavía'
+    : pendingMetricsSource === 'summary_totals_fallback'
+      ? 'saldo pendiente recompuesto desde el resumen mensual del JSON'
+      : pendingMetricsSource === 'records_preview_fallback'
+        ? 'saldo pendiente recompuesto desde recordsPreview'
+        : datasetFreshness.isStale
+          ? 'saldo pendiente visible con dataset vencido'
+          : 'saldo pendiente validado con la última regeneración';
+  const pendingBalanceTransparencyHelp = totalPending === null
+    ? 'falta regenerar flujo-fondos.json para exponer el saldo abierto total'
+    : pendingMetricsRecalculatedAt
+      ? `último fallback recalculado: ${new Date(pendingMetricsRecalculatedAt).toLocaleString('es-AR')}`
+      : datasetFreshness.isStale
+        ? 'todavía falta regenerar desde Excel fuera del cron para validar el dataset completo'
+        : 'sin fallback local pendiente';
   const totalPendingLabel = totalPending === null ? 'pendiente de regenerar desde la planilla' : money(totalPending);
   const totalPendingHelp = totalPending === null
     ? 'falta regenerar flujo-fondos.json para exponer el saldo abierto total'
@@ -94,8 +166,27 @@ export default function Home() {
       : pendingMetricsSource === 'records_preview_fallback'
         ? 'saldo abierto recompuesto desde recordsPreview'
         : datasetFreshness.isStale
-          ? 'saldo abierto validado, pero con dataset vencido'
+          ? 'saldo abierto visible, pero con dataset vencido'
           : 'saldo abierto validado con la última regeneración';
+  const truthLabel = getTruthLabel(activityStatus);
+  const truthReason = getTruthReason(activityStatus);
+  const truthCardTone = truthTone(truthLabel);
+  const pendingSourceOrigin = String(activityStatus?.data_pending_source_origin || '').trim();
+  const pendingSourceVerified = Boolean(activityStatus?.data_pending_source_verified);
+  const shouldSuggestShortPendingRefresh = !pendingSourceVerified && [
+    'json_pending_recalc_fallback',
+    'records_preview_fallback',
+    'stale_json',
+    'stale_json_inconsistent_metrics',
+    'stale_records_preview_fallback',
+  ].includes(pendingSourceOrigin);
+
+  const heroTitle = datasetFreshness.isStale
+    ? 'Tablero funcional con validación parcial y regeneración pendiente'
+    : 'Tablero funcional y validado contra la planilla';
+  const heroDescription = datasetFreshness.isStale
+    ? `Construido a partir de ${flujoData.sourceWorkbook}. Resume ingresos, pendientes, egresos, utilidades y saldo acumulado mes a mes, pero el dataset visible sigue pendiente de regeneración completa desde Excel.`
+    : `Construido a partir de ${flujoData.sourceWorkbook}. Resume ingresos, pendientes, egresos, utilidades y saldo acumulado mes a mes.`;
 
   const kpis = [
     {
@@ -131,9 +222,9 @@ export default function Home() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">APP FLUJO DE FONDOS PILAR</div>
-              <h1 className="mt-3 text-4xl font-semibold">Tablero funcional y validado contra la planilla</h1>
+              <h1 className="mt-3 text-4xl font-semibold">{heroTitle}</h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-                Construido a partir de {flujoData.sourceWorkbook}. Resume ingresos, pendientes, egresos, utilidades y saldo acumulado mes a mes.
+                {heroDescription}
               </p>
             </div>
             <div className={`rounded-2xl px-4 py-3 text-sm ${datasetFreshness.isStale ? 'border border-amber-400/30 bg-amber-400/10 text-amber-100' : 'border border-cyan-400/20 bg-cyan-400/10 text-cyan-100'}`}>
@@ -162,6 +253,20 @@ export default function Home() {
                     <div className="mt-1 text-[11px] text-amber-100/80">
                       Regeneración completa sugerida por Codex para correr fuera del microciclo. No commitear <span className="font-semibold">.venv</span>.
                     </div>
+                    {shouldSuggestShortPendingRefresh ? (
+                      <div className="mt-2 rounded-xl border border-amber-300/15 bg-black/10 px-3 py-2 text-[11px] text-amber-100/90">
+                        <div className="uppercase tracking-[0.16em] text-amber-200/80">Paso corto dentro del microciclo</div>
+                        <div className="mt-1">Antes de regenerar completo, se puede recomponer solo el saldo abierto sobre el JSON actual con:</div>
+                        <div className="mt-2 rounded-lg border border-white/10 bg-black/20 px-2.5 py-2 font-mono leading-5 text-amber-50/95">
+                          npm run flujo:data:recalc-pending
+                        </div>
+                      </div>
+                    ) : null}
+                    {pendingMetricsRecalculatedAt ? (
+                      <div className="mt-2 text-[11px] text-amber-100/80">
+                        Último fallback recalculado desde el JSON: {new Date(pendingMetricsRecalculatedAt).toLocaleString('es-AR')}.
+                      </div>
+                    ) : null}
                     <div className="mt-2 rounded-xl border border-amber-300/15 bg-black/10 px-3 py-2 text-[11px] text-amber-100/90">
                       <div className="uppercase tracking-[0.16em] text-amber-200/80">Fallback corto</div>
                       <div className="mt-1">Si solo hace falta recomponer el saldo abierto sin tocar Excel, correr:</div>
@@ -191,6 +296,96 @@ export default function Home() {
                 <div className="mt-2 text-xs text-slate-500">{item.help}</div>
               </div>
             ))}
+          </div>
+
+          <div className={`rounded-[28px] border p-5 ${truthCardTone}`}>
+            <div className="text-xs font-semibold uppercase tracking-[0.2em] opacity-90">
+              Transparencia operativa
+            </div>
+            <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="text-lg font-semibold">Semáforo visible: "Trabajando de verdad: {truthLabel}"</div>
+                <div className="mt-1 text-sm opacity-85">
+                  {truthReason || 'Abrí el tablero de actividad para separar evidencia material de actividad administrativa antes de marcar trabajo real.'}
+                </div>
+              </div>
+              <Link
+                href="/activity"
+                className="inline-flex items-center justify-center rounded-full border border-emerald-200/30 bg-black/15 px-4 py-2 text-sm font-medium text-emerald-50 transition hover:bg-black/25"
+              >
+                Ir al tablero de actividad
+              </Link>
+            </div>
+            <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${truthCardTone}`}>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] opacity-80">
+                Estado resumido del watchdog
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-black/10 px-3 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] opacity-75">
+                    Evidencia material
+                  </div>
+                  <div className="mt-2 font-medium">
+                    Trabajando de verdad: {truthLabel}
+                  </div>
+                  <div className="mt-1 text-xs opacity-80">
+                    Último artefacto real: {activityStatus?.last_material_artifact || 'sin artefacto material reciente'}
+                  </div>
+                  <div className="mt-1 text-xs opacity-80">
+                    Detectado: {fmtDateTime(activityStatus?.last_material_at)}
+                  </div>
+                  <div className="mt-1 text-xs opacity-80">
+                    Última prueba verificable: {activityStatus?.last_verified_artifact || 'sin prueba verificable reciente'}
+                  </div>
+                  <div className="mt-1 text-xs opacity-80">
+                    Validado: {fmtDateTime(activityStatus?.last_verified_at)}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/10 px-3 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] opacity-75">
+                    Actividad administrativa
+                  </div>
+                  <div className="mt-2 text-xs opacity-80">
+                    Último rastro interno: {activityStatus?.admin_trail || 'sin rastro administrativo reciente'}
+                  </div>
+                  <div className="mt-1 text-xs opacity-80">
+                    Detectado: {fmtDateTime(activityStatus?.admin_trail_at)}
+                  </div>
+                  <div className="mt-1 text-xs opacity-80">
+                    Brecha actual: {activityStatus?.validation_gap || 'sin brecha explícita'}
+                  </div>
+                  <div className="mt-1 text-xs opacity-80">
+                    Si el último ciclo solo dejó estado interno, el semáforo no pasa a SI.
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-200/80">
+                  Estado visible del saldo pendiente
+                </div>
+                <div className="mt-2 text-sm font-medium text-emerald-50">
+                  {pendingBalanceTransparencyLabel}
+                </div>
+                <div className="mt-1 text-xs text-emerald-50/75">
+                  {pendingBalanceTransparencyHelp}
+                </div>
+                <div className="mt-3 inline-flex rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-medium text-emerald-50/85">
+                  {pendingSourceOrigin
+                    ? `Origen visible: ${pendingSourceOrigin}${pendingSourceVerified ? ' · validado' : ' · pendiente validar'}`
+                    : `Origen visible: ${pendingMetricsSource || 'sin clasificar'}${pendingSourceVerified ? ' · validado' : ' · pendiente validar'}`}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-200/80">
+                  Qué revisar antes de darlo por validado
+                </div>
+                <div className="mt-2 text-sm text-emerald-50/90">
+                  Si el saldo pendiente se recompuso desde JSON o el dataset está vencido, el tablero principal sirve para operar, pero la validación fresca sigue pendiente hasta regenerar desde Excel fuera del cron.
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
