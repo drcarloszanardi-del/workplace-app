@@ -55,7 +55,7 @@ def load_openpyxl_workbook():
     except ModuleNotFoundError as exc:
         missing = exc.name or 'openpyxl'
         raise SystemExit(
-            f"Missing dependency: {missing}. Run `python3 -m venv /Users/jarvis/workplace-app/.venv && /Users/jarvis/workplace-app/.venv/bin/python -m pip install openpyxl && /Users/jarvis/workplace-app/.venv/bin/python scripts/build_flujo_data.py` outside the 5-minute cron, and do not commit `.venv/`. If that is not possible, update src/data/flujo-fondos.json manually only for metrics.totalPending as a temporary fallback. After that, validate with `python3 -m json.tool src/data/flujo-fondos.json >/dev/null` and inspect `git diff -- src/data/flujo-fondos.json scripts/build_flujo_data.py`."
+            f"Missing dependency: {missing}. Run `python3 -m venv /Users/jarvis/workplace-app/.venv && /Users/jarvis/workplace-app/.venv/bin/python -m pip install openpyxl && /Users/jarvis/workplace-app/.venv/bin/python scripts/build_flujo_data.py` outside the 5-minute cron, and do not commit `.venv/`. If that is not possible, use the temporary fallback `npm run flujo:data:recalc-pending` to recompute only `metrics.totalPending` from the existing JSON. After that, validate with `python3 -m json.tool src/data/flujo-fondos.json >/dev/null` and inspect `git diff -- src/data/flujo-fondos.json scripts/build_flujo_data.py`."
         ) from exc
     return load_workbook
 
