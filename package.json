@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "flujo:data": "python3 scripts/build_flujo_data.py",
-    "flujo:data:recalc-pending": "python3 scripts/build_flujo_data.py --recalc-pending-from-json"
+    "flujo:data:recalc-pending": "python3 scripts/build_flujo_data.py --recalc-pending-from-json",
+    "pilar:sync": "node scripts/sync_pilar_to_supabase.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.1",

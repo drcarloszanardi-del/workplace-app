@@ -1,9 +1,19 @@
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-import { DashboardClient } from '@/components/dashboard-client';
-import { getMergedStatus } from '@/lib/workplace';
+import { PilarDashboard } from '@/components/pilar-dashboard';
+
+async function fetchDashboard() {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/pilar/dashboard`, {
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    throw new Error(`Dashboard fetch failed: ${res.status}`);
+  }
+  return res.json();
+}
 
 export default async function DashboardPage() {
-  const status = await getMergedStatus();
-  return <DashboardClient initialStatus={status} />;
+  const data = await fetchDashboard();
+  return <PilarDashboard data={data} />;
 }
