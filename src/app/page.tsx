@@ -1,4 +1,5 @@
-import { headers } from 'next/headers';
+import { getDashboardData } from '@/lib/pilar-data';
+import { getPilarAdminClient } from '@/lib/pilar-server';
 import { PilarDashboard } from '@/components/pilar-dashboard';
 
 export const dynamic = 'force-dynamic';
@@ -8,23 +9,21 @@ type PageProps = {
   searchParams?: Promise<{ year?: string }>;
 };
 
-async function fetchDashboard(year?: number) {
-  const query = year ? `?year=${year}` : '';
-  const headersList = await headers();
-  const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000';
-  const proto = headersList.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
-  const res = await fetch(`${proto}://${host}/api/pilar/dashboard${query}`, {
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    throw new Error(`Dashboard fetch failed: ${res.status}`);
+async function getHomeData(year?: number) {
+  const base = getDashboardData(Number.isFinite(year) ? year : undefined);
+
+  try {
+    getPilarAdminClient();
+  } catch {
+    return { ...base, source: 'json-fallback', sourceError: 'Supabase env missing' };
   }
-  return res.json();
+
+  return base;
 }
 
 export default async function Home({ searchParams }: PageProps) {
   const params = (await searchParams) || {};
   const year = params.year ? Number(params.year) : undefined;
-  const data = await fetchDashboard(Number.isFinite(year) ? year : undefined);
+  const data = await getHomeData(Number.isFinite(year) ? year : undefined);
   return <PilarDashboard data={data} />;
 }
