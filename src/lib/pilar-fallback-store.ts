@@ -11,6 +11,8 @@ type FallbackStore = {
   updatedAt: string;
 };
 
+export type PilarFallbackStore = FallbackStore;
+
 function cloneRecords(): FlujoRecordPreview[] {
   return getFlujoData().recordsPreview.map((item) => ({ ...item }));
 }
@@ -96,4 +98,26 @@ export async function addFallbackDebt(input: Partial<DebtItem>) {
   store.debts.push(debt);
   await writeFallbackStore(store);
   return debt;
+}
+
+export async function updateFallbackTransaction(id: number, patch: Partial<FlujoRecordPreview>) {
+  const store = await readFallbackStore();
+  const index = store.transactions.findIndex((item) => Number(item.id) === Number(id));
+  if (index === -1) return null;
+  const current = store.transactions[index];
+  const next = { ...current, ...patch };
+  store.transactions[index] = next;
+  await writeFallbackStore(store);
+  return next;
+}
+
+export async function updateFallbackDebt(target: { concept: string; dueDate: string | null }, patch: Partial<DebtItem>) {
+  const store = await readFallbackStore();
+  const index = store.debts.findIndex((item) => item.concept === target.concept && (item.dueDate || null) === (target.dueDate || null));
+  if (index === -1) return null;
+  const current = store.debts[index];
+  const next = { ...current, ...patch };
+  store.debts[index] = next;
+  await writeFallbackStore(store);
+  return next;
 }

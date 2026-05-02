@@ -2,39 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { formatArs } from '@/lib/pilar-data';
+import { PILAR_CATEGORY_OPTIONS } from '@/lib/pilar-categories';
 import type { FlujoRecordPreview } from '@/lib/pilar-types';
-
-const CATEGORY_OPTIONS = [
-  'Ventas Maxi Pisos',
-  'Ventas Mozzetto',
-  'Ventas Flex-Color',
-  'Ventas Lamparas',
-  'Ventas Mobile',
-  'Ventas Muresco',
-  'Ventas Otros',
-  'Maxi Pisos - Pagos',
-  'Mozzetto - Pagos',
-  'Flex-Color - Pagos',
-  'Lamparas - Pagos',
-  'Mobile - Pagos',
-  'Muresco - Pagos',
-  'Otros Proveedores - Pagos',
-  'Impuestos',
-  'Viaticos/Combustible',
-  'Ferreteria',
-  'Publicidad',
-  'Alquiler',
-  'Colocación',
-  'Servicios',
-  'Fletes',
-  'Gastos Generales',
-  'Contador',
-  'AFIP',
-  'Showroom',
-  'Compra Dolares',
-  'Utilidades Pilar',
-  'Utilidades Male',
-];
 
 const EMPTY_FORM = {
   fecha: '',
@@ -50,6 +19,7 @@ const EMPTY_FORM = {
 export function PilarTransactionsTable({ records }: { records: FlujoRecordPreview[] }) {
   const [items, setItems] = useState(records);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -60,6 +30,25 @@ export function PilarTransactionsTable({ records }: { records: FlujoRecordPrevie
 
   function updateField(name: keyof typeof EMPTY_FORM, value: string) {
     setForm((current) => ({ ...current, [name]: value }));
+  }
+
+  function fillFormFromRecord(record: FlujoRecordPreview) {
+    setEditingId(record.id);
+    setForm({
+      fecha: record.date || '',
+      cliente: record.client || '',
+      producto: record.product || '',
+      categoria: record.category || 'Ventas Otros',
+      presupuesto: String(record.budget || 0),
+      cobro_1: String(record.collection1 || 0),
+      cobro_2: String(record.collection2 || 0),
+      gastos: String(record.expense || 0),
+    });
+  }
+
+  function resetForm() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -90,16 +79,18 @@ export function PilarTransactionsTable({ records }: { records: FlujoRecordPrevie
         gastos,
         moneda: 'ARS',
       };
-      const res = await fetch('/api/pilar/transacciones', {
-        method: 'POST',
+      const endpoint = editingId ? `/api/pilar/transacciones/${editingId}` : '/api/pilar/transacciones';
+      const method = editingId ? 'PATCH' : 'POST';
+      const res = await fetch(endpoint, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const response = await res.json();
       if (!res.ok || !response.ok) throw new Error(response.error || 'No se pudo guardar');
-      const saved: FlujoRecordPreview = response.mode === 'supabase'
+      const normalized: FlujoRecordPreview = response.mode === 'supabase'
         ? {
-            id: Number(response.data[0]?.id || response.data[0]?.numero || Date.now()),
+            id: Number(response.data[0]?.id || response.data[0]?.numero || editingId || Date.now()),
             date: response.data[0]?.fecha || fecha,
             month: Number(response.data[0]?.mes || payload.mes),
             year: Number(response.data[0]?.anio || payload.anio),
@@ -119,9 +110,13 @@ export function PilarTransactionsTable({ records }: { records: FlujoRecordPrevie
             expense: Number(response.data[0]?.gastos || gastos),
           }
         : response.data;
-      setItems((current) => [saved, ...current]);
-      setForm(EMPTY_FORM);
-      setMessage(response.mode === 'supabase' ? 'Movimiento guardado en la base.' : 'Movimiento guardado en modo fallback temporal.');
+
+      setItems((current) => {
+        if (editingId) return current.map((item) => (item.id === editingId ? normalized : item));
+        return [normalized, ...current];
+      });
+      resetForm();
+      setMessage(editingId ? 'Movimiento actualizado.' : 'Movimiento agregado.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Error al guardar');
     } finally {
@@ -136,19 +131,20 @@ export function PilarTransactionsTable({ records }: { records: FlujoRecordPrevie
         <input value={form.cliente} onChange={(e) => updateField('cliente', e.target.value)} placeholder="Cliente" className="rounded-xl border border-white/10 bg-[#0f1730] px-3 py-2 text-sm text-white outline-none" />
         <input value={form.producto} onChange={(e) => updateField('producto', e.target.value)} placeholder="Producto" className="rounded-xl border border-white/10 bg-[#0f1730] px-3 py-2 text-sm text-white outline-none" />
         <select value={form.categoria} onChange={(e) => updateField('categoria', e.target.value)} className="rounded-xl border border-white/10 bg-[#0f1730] px-3 py-2 text-sm text-white outline-none">
-          {CATEGORY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+          {PILAR_CATEGORY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
         </select>
         <input value={form.presupuesto} onChange={(e) => updateField('presupuesto', e.target.value)} placeholder="Presupuesto" type="number" step="0.01" className="rounded-xl border border-white/10 bg-[#0f1730] px-3 py-2 text-sm text-white outline-none" />
         <input value={form.cobro_1} onChange={(e) => updateField('cobro_1', e.target.value)} placeholder="Cobro 1" type="number" step="0.01" className="rounded-xl border border-white/10 bg-[#0f1730] px-3 py-2 text-sm text-white outline-none" />
         <input value={form.cobro_2} onChange={(e) => updateField('cobro_2', e.target.value)} placeholder="Cobro 2" type="number" step="0.01" className="rounded-xl border border-white/10 bg-[#0f1730] px-3 py-2 text-sm text-white outline-none" />
         <input value={form.gastos} onChange={(e) => updateField('gastos', e.target.value)} placeholder="Gasto" type="number" step="0.01" className="rounded-xl border border-white/10 bg-[#0f1730] px-3 py-2 text-sm text-white outline-none" />
         <div className="md:col-span-4 xl:col-span-8 flex flex-wrap items-center gap-3">
-          <button disabled={saving} className="rounded-xl border border-white/10 bg-sky-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{saving ? 'Guardando...' : 'Agregar movimiento'}</button>
+          <button disabled={saving} className="rounded-xl border border-white/10 bg-sky-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Agregar movimiento'}</button>
+          {editingId ? <button type="button" onClick={resetForm} className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white">Cancelar edición</button> : null}
           {message ? <div className="text-xs text-slate-300">{message}</div> : null}
         </div>
       </form>
       <div className="overflow-x-auto">
-        <table className="min-w-[1200px] w-full text-sm">
+        <table className="min-w-[1280px] w-full text-sm">
           <thead className="bg-[#0f1730] text-slate-300">
             <tr>
               <th className="px-4 py-3 text-left">Fecha</th>
@@ -161,6 +157,7 @@ export function PilarTransactionsTable({ records }: { records: FlujoRecordPrevie
               <th className="px-4 py-3 text-right">Cobro Total</th>
               <th className="px-4 py-3 text-right">Saldo</th>
               <th className="px-4 py-3 text-right">Gastos</th>
+              <th className="px-4 py-3 text-left">Acción</th>
             </tr>
           </thead>
           <tbody>
@@ -176,6 +173,7 @@ export function PilarTransactionsTable({ records }: { records: FlujoRecordPrevie
                 <td className="px-4 py-3 text-right whitespace-nowrap">{formatArs(record.totalCollection || 0)}</td>
                 <td className={`px-4 py-3 text-right whitespace-nowrap ${(record.balance || 0) > 0 ? 'text-amber-300' : ''}`}>{formatArs(record.balance || 0)}</td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">{formatArs(record.expense || 0)}</td>
+                <td className="px-4 py-3"><button type="button" onClick={() => fillFormFromRecord(record)} className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs text-white">Editar</button></td>
               </tr>
             ))}
           </tbody>
