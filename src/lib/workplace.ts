@@ -6,8 +6,8 @@ export const statusPath = '/Users/jarvis/workplace/status.json';
 const workspaceRoot = process.env.WORKPLACE_SOURCE_ROOT || '/Users/jarvis/.openclaw/workspace';
 const localProjectsRoot = `${workspaceRoot}/workplace/projects`;
 const bundledProjectsRoot = `${process.cwd()}/workplace/projects`;
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ieznwnrhbroiaobheoan.supabase.co';
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseUrl = process.env.NEXT_PUBLIC_PILAR_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const serviceRoleKey = process.env.PILAR_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 type ProjectCard = {
   key: string;
