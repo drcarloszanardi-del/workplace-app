@@ -5,13 +5,13 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const REQUIRED_TABLES = [
-  'rubros',
-  'transacciones',
-  'cuenta_usd',
-  'deudas',
-  'caja',
-  'cotizacion_usd_cache',
-  'user_roles',
+  'pilar_rubros',
+  'pilar_transacciones',
+  'pilar_cuenta_usd',
+  'pilar_deudas',
+  'pilar_caja',
+  'pilar_cotizacion_usd_cache',
+  'pilar_user_roles',
 ] as const;
 
 export async function GET() {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDashboardData } from '@/lib/pilar-data';
+import { getDashboardData, getAvailableYears } from '@/lib/pilar-data';
 import { getPilarAdminClient } from '@/lib/pilar-server';
 
 export const dynamic = 'force-dynamic';
@@ -9,10 +9,10 @@ async function getSupabaseSnapshot() {
   try {
     const supabase = getPilarAdminClient();
     const [transaccionesRes, deudasRes, cajaRes, cuentaUsdRes] = await Promise.all([
-      supabase.from('transacciones').select('fecha,mes,anio,cobro_total,pendiente,gastos,saldo,moneda,monto_usd,rubros(nombre,tipo,grupo_proveedor)').order('fecha', { ascending: true }).limit(5000),
-      supabase.from('deudas').select('*').order('concepto'),
-      supabase.from('caja').select('*').order('orden'),
-      supabase.from('cuenta_usd').select('*').order('fecha', { ascending: true }).limit(1000),
+      supabase.from('pilar_transacciones').select('numero,cliente,producto,presupuesto,presupuesto_proveedor,cobro_1,fecha_2,mes_2,anio_2,cobro_2,fecha,mes,anio,cobro_total,pendiente,gastos,saldo,moneda,monto_usd,pilar_rubros(nombre,tipo,grupo_proveedor)').order('fecha', { ascending: true }).limit(5000),
+      supabase.from('pilar_deudas').select('*').order('concepto'),
+      supabase.from('pilar_caja').select('*').order('orden'),
+      supabase.from('pilar_cuenta_usd').select('*').order('fecha', { ascending: true }).limit(1000),
     ]);
 
     const errors = [transaccionesRes.error, deudasRes.error, cajaRes.error, cuentaUsdRes.error].filter(Boolean);
@@ -74,7 +74,9 @@ function buildDashboardFromSupabase(snapshot: Awaited<ReturnType<typeof getSupab
       });
     }
     const month = grouped.get(key);
-    const rubro = Array.isArray(tx.rubros) ? tx.rubros[0] : tx.rubros;
+    const rubro = Array.isArray((tx as { pilar_rubros?: unknown }).pilar_rubros)
+      ? (tx as { pilar_rubros?: Array<{ nombre?: string; tipo?: string }> }).pilar_rubros?.[0]
+      : (tx as { pilar_rubros?: { nombre?: string; tipo?: string } }).pilar_rubros;
     const category = rubro?.nombre || 'Sin rubro';
     const tipo = rubro?.tipo || 'ingreso';
     const cobroTotal = Number(tx.cobro_total || 0);
@@ -104,8 +106,9 @@ function buildDashboardFromSupabase(snapshot: Awaited<ReturnType<typeof getSupab
     month.totals.accumulatedBalance = running;
   }
 
-  const years = [...new Set(allMonths.map((item) => item.year))].sort((a, b) => b - a);
-  const activeYear = selectedYear && years.includes(selectedYear) ? selectedYear : years[0];
+  const fallbackYears = getAvailableYears(getDashboardData().flujo);
+  const years = [...new Set([...allMonths.map((item) => item.year), ...fallbackYears])].sort((a, b) => b - a);
+  const activeYear = selectedYear && years.includes(selectedYear) ? selectedYear : (years[0] ?? fallbackYears[0]);
   const visibleMonths = allMonths.filter((item) => item.year === activeYear);
   const latestMonth = visibleMonths[visibleMonths.length - 1] || null;
 
@@ -128,7 +131,35 @@ function buildDashboardFromSupabase(snapshot: Awaited<ReturnType<typeof getSupab
       ...base.flujo,
       generatedAt: `supabase-live:${new Date().toISOString()}`,
       debts: deudas.map((item) => ({ concept: item.concepto, amount: Number(item.monto || 0), dueDate: item.vencimiento || null })),
-      recordsPreview: base.flujo.recordsPreview,
+      recordsPreview: transacciones
+        .slice()
+        .sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')))
+        .slice(0, 500)
+        .map((item, index) => {
+          const rubro = Array.isArray((item as { pilar_rubros?: unknown }).pilar_rubros)
+            ? (item as { pilar_rubros?: Array<{ nombre?: string }> }).pilar_rubros?.[0]
+            : (item as { pilar_rubros?: { nombre?: string } }).pilar_rubros;
+          return {
+            id: Number(item.numero || index + 1),
+            date: item.fecha || null,
+            month: Number(item.mes || 0),
+            year: Number(item.anio || 0),
+            client: item.cliente || '',
+            product: item.producto || '',
+            category: rubro?.nombre || '',
+            budget: Number(item.presupuesto || 0),
+            supplierBudget: Number(item.presupuesto_proveedor || 0),
+            collection1: Number(item.cobro_1 || 0),
+            pending: Number(item.pendiente || 0),
+            date2: item.fecha_2 || null,
+            month2: Number(item.mes_2 || 0),
+            year2: Number(item.anio_2 || 0),
+            collection2: Number(item.cobro_2 || 0),
+            totalCollection: Number(item.cobro_total || 0),
+            balance: Number(item.saldo || 0),
+            expense: Number(item.gastos || 0),
+          };
+        }),
       metrics: {
         ...base.flujo.metrics,
         totalDebt: deudaTotal,

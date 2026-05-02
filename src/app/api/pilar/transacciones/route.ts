@@ -12,8 +12,8 @@ export async function GET(req: NextRequest) {
   const moneda = req.nextUrl.searchParams.get('moneda');
 
   let query = supabase
-    .from('transacciones')
-    .select('*, rubros(nombre, tipo, grupo_proveedor)')
+    .from('pilar_transacciones')
+    .select('*, pilar_rubros(nombre, tipo, grupo_proveedor)')
     .order('fecha', { ascending: false })
     .limit(500);
 
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const supabase = getPilarAdminClient();
   const body = await req.json();
-  const { data, error } = await supabase.from('transacciones').insert(body).select();
+  const { data, error } = await supabase.from('pilar_transacciones').insert(body).select();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, data }, { status: 201 });
 }

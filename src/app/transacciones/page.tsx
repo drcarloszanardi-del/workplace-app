@@ -22,7 +22,7 @@ type TxDto = {
   cobro_total: number;
   saldo: number;
   gastos: number;
-  rubros?: { nombre?: string | null } | null;
+  pilar_rubros?: { nombre?: string | null }[] | { nombre?: string | null } | null;
 };
 
 async function fetchTransactions() {
@@ -36,14 +36,16 @@ async function fetchTransactions() {
 
 export default async function TransaccionesPage() {
   const data = await fetchTransactions();
-  const records: FlujoRecordPreview[] = data.map((item, index) => ({
+  const records: FlujoRecordPreview[] = data.map((item, index) => {
+    const rubro = Array.isArray(item.pilar_rubros) ? item.pilar_rubros[0] : item.pilar_rubros;
+    return ({
     id: index + 1,
     date: item.fecha,
     month: Number(item.mes || 0),
     year: Number(item.anio || 0),
     client: item.cliente || '',
     product: item.producto || '',
-    category: item.rubros?.nombre || '',
+    category: rubro?.nombre || '',
     budget: Number(item.presupuesto || 0),
     supplierBudget: Number(item.presupuesto_proveedor || 0),
     collection1: Number(item.cobro_1 || 0),
@@ -55,7 +57,8 @@ export default async function TransaccionesPage() {
     totalCollection: Number(item.cobro_total || 0),
     balance: Number(item.saldo || 0),
     expense: Number(item.gastos || 0),
-  }));
+  });
+  });
   return (
     <main className="min-h-screen bg-[#0b1020] px-4 py-6 text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1600px]">

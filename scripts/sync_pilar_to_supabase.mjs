@@ -121,20 +121,22 @@ const deudas = (data.debts || []).map((item) => ({
 }));
 
 async function main() {
-  const rubroRows = await rest('rubros?select=id,nombre&limit=500');
-  const useExistingTables = Array.isArray(rubroRows) && rubroRows.length && 'obra_id' in rubroRows[0];
-  if (useExistingTables) {
-    throw new Error('La tabla rubros existente pertenece a otra app. Hay que aislar PIL-001 en otro schema/proyecto Supabase antes de publicar.');
+  const required = ['pilar_rubros','pilar_transacciones','pilar_cuenta_usd','pilar_deudas','pilar_caja','pilar_cotizacion_usd_cache','pilar_user_roles'];
+  for (const table of required) {
+    const probe = await fetch(`${baseUrl}/rest/v1/${table}?select=*&limit=1`, { headers });
+    if (probe.status === 404) {
+      throw new Error(`Falta la tabla ${table}. Antes ejecutar el bootstrap SQL en la base Pilar.`);
+    }
   }
 
-  await rest('rubros', { method: 'POST', body: JSON.stringify(rubros) });
-  const rubrosActuales = await rest('rubros?select=id,nombre&limit=500');
+  await rest('pilar_rubros?on_conflict=nombre', { method: 'POST', body: JSON.stringify(rubros) });
+  const rubrosActuales = await rest('pilar_rubros?select=id,nombre&limit=500');
   const rubroMap = new Map(rubrosActuales.map((row) => [row.nombre, row.id]));
 
-  await rest('caja?on_conflict=concepto', { method: 'POST', body: JSON.stringify(cajaBase) });
-  await rest('deudas?on_conflict=concepto', { method: 'POST', body: JSON.stringify(deudas) });
+  await rest('pilar_caja?on_conflict=concepto', { method: 'POST', body: JSON.stringify(cajaBase) });
+  await rest('pilar_deudas?on_conflict=concepto', { method: 'POST', body: JSON.stringify(deudas) });
 
-  await rest('transacciones?id=not.is.null', { method: 'DELETE' });
+  await rest('pilar_transacciones?id=not.is.null', { method: 'DELETE' });
   const records = (data.recordsPreview || []).map((record) => ({
     fecha: record.date,
     mes: Number(record.month),
@@ -162,7 +164,7 @@ async function main() {
   })).filter((row) => row.rubro_id && row.fecha);
 
   for (const batch of chunk(records, 200)) {
-    await rest('transacciones', { method: 'POST', body: JSON.stringify(batch) });
+    await rest('pilar_transacciones', { method: 'POST', body: JSON.stringify(batch) });
   }
 
   const cuentaUsd = [
@@ -175,7 +177,7 @@ async function main() {
       descripcion: 'Saldo inicial migrado desde caja histórica',
     },
   ];
-  await rest('cuenta_usd', { method: 'POST', body: JSON.stringify(cuentaUsd) });
+  await rest('pilar_cuenta_usd', { method: 'POST', body: JSON.stringify(cuentaUsd) });
 
   console.log(JSON.stringify({ ok: true, rubros: rubros.length, deudas: deudas.length, transacciones: records.length, cuentaUsd: cuentaUsd.length }, null, 2));
 }

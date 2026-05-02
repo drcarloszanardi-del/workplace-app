@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 
 export async function GET() {
   const supabase = getPilarAdminClient();
-  const { data, error } = await supabase.from('caja').select('*').order('orden');
+  const { data, error } = await supabase.from('pilar_caja').select('*').order('orden');
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, data });
 }
