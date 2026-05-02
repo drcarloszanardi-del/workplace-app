@@ -46,6 +46,14 @@ function monthLabel(year: number, month: number) {
 function buildDashboardFromSupabase(snapshot: Awaited<ReturnType<typeof getSupabaseSnapshot>>, selectedYear?: number) {
   if (!snapshot.ok) return null;
 
+  const hasUsefulLiveData =
+    (snapshot.transacciones?.length || 0) > 0 ||
+    (snapshot.deudas?.length || 0) > 0 ||
+    (snapshot.caja?.length || 0) > 0 ||
+    (snapshot.cuentaUsd?.length || 0) > 0;
+
+  if (!hasUsefulLiveData) return null;
+
   const incomeCategories = ['Ventas Maxi Pisos', 'Ventas Mozzetto', 'Ventas Flex-Color', 'Ventas Lamparas', 'Ventas Mobile', 'Ventas Muresco', 'Ventas Otros', 'Liquidación USD'] as const;
   const expenseCategories = ['Maxi Pisos - Pagos', 'Mozzetto - Pagos', 'Flex-Color - Pagos', 'Lamparas - Pagos', 'Mobile - Pagos', 'Muresco - Pagos', 'Otros Proveedores - Pagos', 'Impuestos', 'Viaticos/Combustible', 'Ferreteria', 'Publicidad', 'Alquiler', 'Colocación', 'Servicios', 'Fletes', 'Gastos Generales', 'Contador', 'AFIP', 'Showroom'] as const;
   const utilityCategories = ['Compra Dolares', 'Utilidades Pilar', 'Utilidades Male'] as const;
