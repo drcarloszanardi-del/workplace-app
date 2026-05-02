@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import { PilarDashboard } from '@/components/pilar-dashboard';
 
 export const dynamic = 'force-dynamic';
@@ -9,7 +10,10 @@ type PageProps = {
 
 async function fetchDashboard(year?: number) {
   const query = year ? `?year=${year}` : '';
-  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/pilar/dashboard${query}`, {
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000';
+  const proto = headersList.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+  const res = await fetch(`${proto}://${host}/api/pilar/dashboard${query}`, {
     cache: 'no-store',
   });
   if (!res.ok) {
