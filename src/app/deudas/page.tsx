@@ -1,3 +1,6 @@
+import Link from 'next/link';
+import { getDashboardData } from '@/lib/pilar-data';
+import { getPilarAdminClient } from '@/lib/pilar-server';
 import { PilarDebtsTable } from '@/components/pilar-debts-table';
 
 type DebtDto = {
@@ -10,12 +13,18 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 async function fetchDebts() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/pilar/deudas`, {
-    cache: 'no-store',
-  });
-  if (!res.ok) throw new Error(`Debts fetch failed: ${res.status}`);
-  const payload = await res.json();
-  return (payload.data || []) as DebtDto[];
+  try {
+    const supabase = getPilarAdminClient();
+    const { data, error } = await supabase.from('pilar_deudas').select('*').order('concepto');
+    if (error) throw error;
+    return (data || []) as DebtDto[];
+  } catch {
+    return (getDashboardData().flujo.debts || []).map((item) => ({
+      concepto: item.concept,
+      monto: Number(item.amount || 0),
+      vencimiento: item.dueDate || null,
+    }));
+  }
 }
 
 export default async function DeudasPage() {
@@ -26,7 +35,12 @@ export default async function DeudasPage() {
         <header className="mb-6">
           <div className="text-xs uppercase tracking-[0.22em] text-slate-400">App de Pilar</div>
           <h1 className="mt-2 text-3xl font-semibold">Deudas</h1>
-          <p className="mt-2 text-sm text-slate-400">Vista conectada a Supabase real.</p>
+          <p className="mt-2 text-sm text-slate-400">Vista de revisión. Si la base no responde en producción, muestra respaldo histórico.</p>
+          <div className="mt-4 flex flex-wrap gap-3 text-sm">
+            <Link href="/" className="rounded-full border border-white/10 bg-white/5 px-4 py-2">Dashboard</Link>
+            <Link href="/transacciones" className="rounded-full border border-white/10 bg-white/5 px-4 py-2">Transacciones</Link>
+            <Link href="/deudas" className="rounded-full border border-white/10 bg-white/5 px-4 py-2">Deudas</Link>
+          </div>
         </header>
         <PilarDebtsTable debts={debts.map((item) => ({ concept: item.concepto, amount: Number(item.monto || 0), dueDate: item.vencimiento || null }))} />
       </div>

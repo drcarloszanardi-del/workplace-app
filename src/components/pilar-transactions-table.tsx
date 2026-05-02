@@ -6,6 +6,10 @@ import type { FlujoRecordPreview } from '@/lib/pilar-types';
 export function PilarTransactionsTable({ records }: { records: FlujoRecordPreview[] }) {
   return (
     <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#121a31]">
+      <div className="border-b border-white/10 px-4 py-4">
+        <div className="text-sm font-medium text-slate-200">Transacciones</div>
+        <div className="mt-1 text-xs text-amber-300">Por ahora esta pantalla es solo de lectura. La carga y edición de pagos, gastos o movimientos todavía no está implementada en la interfaz.</div>
+      </div>
       <div className="overflow-x-auto">
         <table className="min-w-[1200px] w-full text-sm">
           <thead className="bg-[#0f1730] text-slate-300">
