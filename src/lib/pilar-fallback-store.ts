@@ -1,9 +1,11 @@
 import fs from 'fs/promises';
+import os from 'os';
 import path from 'path';
 import { getFlujoData } from '@/lib/pilar-data';
 import type { DebtItem, FlujoRecordPreview } from '@/lib/pilar-types';
 
-const STORE_PATH = path.join(process.cwd(), 'tmp', 'pilar-fallback-store.json');
+const STORE_ROOT = process.env.PILAR_FALLBACK_STORE_DIR?.trim() || path.join(os.tmpdir(), 'pilar-fallback-store');
+const STORE_PATH = path.join(STORE_ROOT, 'pilar-fallback-store.json');
 
 type FallbackStore = {
   transactions: FlujoRecordPreview[];

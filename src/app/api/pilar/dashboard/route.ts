@@ -192,12 +192,17 @@ function buildDashboardFromSupabase(snapshot: Awaited<ReturnType<typeof getSupab
   };
 }
 
+export async function getDashboardPayload(selectedYear?: number) {
+  const year = Number.isFinite(selectedYear) ? selectedYear : undefined;
+  const snapshot = await getSupabaseSnapshot();
+  const liveData = buildDashboardFromSupabase(snapshot, year);
+  if (liveData) return liveData;
+  const data = getDashboardData(year);
+  return { ...data, source: 'json-fallback', sourceError: snapshot.ok ? null : snapshot.reason };
+}
+
 export async function GET(req: NextRequest) {
   const yearParam = req.nextUrl.searchParams.get('year');
   const year = yearParam ? Number(yearParam) : undefined;
-  const snapshot = await getSupabaseSnapshot();
-  const liveData = buildDashboardFromSupabase(snapshot, Number.isFinite(year) ? year : undefined);
-  if (liveData) return NextResponse.json(liveData);
-  const data = getDashboardData(Number.isFinite(year) ? year : undefined);
-  return NextResponse.json({ ...data, source: 'json-fallback', sourceError: snapshot.ok ? null : snapshot.reason });
+  return NextResponse.json(await getDashboardPayload(year));
 }

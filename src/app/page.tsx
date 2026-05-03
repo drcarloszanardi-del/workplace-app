@@ -1,5 +1,4 @@
-import { getDashboardData } from '@/lib/pilar-data';
-import { getPilarAdminClient } from '@/lib/pilar-server';
+import { getDashboardPayload } from '@/app/api/pilar/dashboard/route';
 import { PilarDashboard } from '@/components/pilar-dashboard';
 
 export const dynamic = 'force-dynamic';
@@ -10,15 +9,7 @@ type PageProps = {
 };
 
 async function getHomeData(year?: number) {
-  const base = getDashboardData(Number.isFinite(year) ? year : undefined);
-
-  try {
-    getPilarAdminClient();
-  } catch {
-    return { ...base, source: 'json-fallback', sourceError: 'Supabase env missing' };
-  }
-
-  return base;
+  return getDashboardPayload(Number.isFinite(year) ? year : undefined);
 }
 
 export default async function Home({ searchParams }: PageProps) {
