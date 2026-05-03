@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { formatArs } from '@/lib/pilar-data';
+import { formatArs } from '@/lib/pilar-format';
 import type { DebtItem } from '@/lib/pilar-types';
 
 export function PilarDebtsTable({ debts }: { debts: DebtItem[] }) {

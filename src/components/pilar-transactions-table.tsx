@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { formatArs } from '@/lib/pilar-data';
+import { formatArs } from '@/lib/pilar-format';
 import { PILAR_CATEGORY_OPTIONS } from '@/lib/pilar-categories';
 import type { FlujoRecordPreview } from '@/lib/pilar-types';
 

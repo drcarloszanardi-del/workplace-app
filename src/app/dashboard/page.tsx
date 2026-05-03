@@ -1,10 +1,21 @@
+import { PilarDashboard } from '@/components/pilar-dashboard';
+import { getDashboardPayload, normalizeYear } from '@/lib/pilar-dashboard-data';
+
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const revalidate = 0;
 
-import { getDashboardData } from '@/lib/pilar-data';
-import { PilarDashboard } from '@/components/pilar-dashboard';
+type PageProps = {
+  searchParams?: Promise<{ year?: string | string[] }>;
+};
 
-export default async function DashboardPage() {
-  const data = getDashboardData();
+function parseYearParam(value?: string | string[]) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return normalizeYear(raw ? Number(raw) : undefined);
+}
+
+export default async function DashboardPage({ searchParams }: PageProps) {
+  const params = (await searchParams) || {};
+  const data = await getDashboardPayload(parseYearParam(params.year));
   return <PilarDashboard data={data} />;
 }

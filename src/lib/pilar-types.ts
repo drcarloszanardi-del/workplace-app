@@ -34,8 +34,8 @@ export type FlujoMetrics = {
 export type FlujoRecordPreview = {
   id: number;
   date: string | null;
-  month: number;
-  year: number;
+  month: number | null;
+  year: number | null;
   client: string;
   product: string;
   category: string;
@@ -44,8 +44,8 @@ export type FlujoRecordPreview = {
   collection1: number;
   pending: number;
   date2: string | null;
-  month2: number;
-  year2: number;
+  month2: number | null;
+  year2: number | null;
   collection2: number;
   totalCollection: number;
   balance: number;
@@ -97,6 +97,8 @@ export type DashboardNotification = {
 
 export type PilarDashboardData = {
   flujo: FlujoData;
+  source?: 'supabase-live' | 'json-static-fallback';
+  sourceError?: string | null;
   selectedYear: number;
   years: number[];
   months: MonthlySummary[];

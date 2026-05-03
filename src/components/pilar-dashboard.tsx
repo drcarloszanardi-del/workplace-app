@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { buildDashboardRows, formatArs, formatPercent, formatUsd } from '@/lib/pilar-data';
+import { buildDashboardRows } from '@/lib/pilar-data';
+import { formatArs, formatPercent, formatUsd } from '@/lib/pilar-format';
 import type { PilarDashboardData } from '@/lib/pilar-types';
 
 type Props = {
@@ -14,10 +15,44 @@ function toneClasses(tone: 'danger' | 'warning' | 'info') {
   return 'border-sky-400/30 bg-sky-500/10 text-sky-100';
 }
 
+function sourceBadgeClasses(source?: string) {
+  return source === 'supabase-live'
+    ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100'
+    : 'border-amber-400/30 bg-amber-500/10 text-amber-100';
+}
+
+function formatGeneratedAt(value?: string) {
+  if (!value) return null;
+  const raw = value.startsWith('supabase-live:') ? value.slice('supabase-live:'.length) : value;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat('es-AR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+    timeZone: 'America/Argentina/Buenos_Aires',
+  }).format(date);
+}
+
+function formatFallbackMessage(sourceError?: string | null) {
+  if (!sourceError) return 'Fallback activo: Supabase no devolvió datos útiles todavía.';
+  if (sourceError.includes('Supabase env missing')) return 'Fallback activo: faltan variables de entorno de Supabase en este deploy.';
+  if (sourceError.includes('Supabase public env missing')) return 'Fallback activo: falta la configuración pública de Supabase en este deploy.';
+  if (sourceError.includes('faltan tablas de Pilar')) return 'Fallback activo: este entorno responde a Supabase, pero todavía no tiene creadas las tablas de Pilar.';
+  if (sourceError.includes('rechazó el acceso')) return 'Fallback activo: Supabase está configurado, pero este entorno no tiene permisos para leer Pilar.';
+  if (sourceError.includes('no devolvió datos útiles')) return 'Fallback activo: las tablas de Pilar todavía no tienen datos útiles.';
+  return `Fallback activo: ${sourceError}`;
+}
+
 export function PilarDashboard({ data }: Props) {
   const visibleMonth = data.latestMonth;
-  const allRows = visibleMonth ? buildDashboardRows(visibleMonth) : [];
   const visibleRows = visibleMonth ? buildDashboardRows(visibleMonth) : [];
+  const generatedAtLabel = formatGeneratedAt(data.flujo.generatedAt);
+  const yearTotals = data.months.reduce<Record<string, number>>((acc, month) => {
+    for (const row of buildDashboardRows(month)) {
+      acc[row.label] = (acc[row.label] || 0) + row.value;
+    }
+    return acc;
+  }, {});
 
   return (
     <main className="min-h-screen bg-[#0b1020] text-slate-100">
@@ -46,7 +81,18 @@ export function PilarDashboard({ data }: Props) {
               <div>Año visible: <strong>{data.selectedYear}</strong></div>
               <div className="mt-1">Meses cargados: {data.months.length}</div>
               <div className="mt-1">Mes visible: <strong>{visibleMonth?.label || 'sin datos'}</strong></div>
-              <div className="mt-1">Fuente: <strong>{String(data.flujo.generatedAt || '').startsWith('supabase-live:') ? 'Supabase real' : 'Respaldo histórico'}</strong></div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span>Fuente:</span>
+                <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${sourceBadgeClasses(data.source)}`}>
+                  {data.source === 'supabase-live' ? 'Supabase real' : 'Respaldo JSON estático'}
+                </span>
+              </div>
+              {generatedAtLabel ? <div className="mt-2 text-xs text-slate-400">Actualizado: {generatedAtLabel}</div> : null}
+              {data.source !== 'supabase-live' ? (
+                <div className="mt-2 text-xs text-amber-200">
+                  {formatFallbackMessage(data.sourceError)}
+                </div>
+              ) : null}
             </div>
           </div>
         </header>
@@ -81,26 +127,18 @@ export function PilarDashboard({ data }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {allRows.map((row) => {
+                  {visibleRows.map((row) => {
                     const isSection = row.kind === 'section';
                     const isSaldo = row.kind === 'saldo';
+                    const negative = row.value < 0;
                     return (
                       <tr key={row.label} className={isSection || isSaldo ? 'bg-white/5 font-semibold' : 'border-t border-white/5'}>
                         <td className="sticky left-0 z-10 bg-inherit px-4 py-3 text-left">{row.label}</td>
-                        {(() => {
-                          const visibleValue = visibleRows.find((item) => item.label === row.label)?.value || 0;
-                          const negative = visibleValue < 0;
-                          return (
-                            <td className={`px-4 py-3 text-right whitespace-nowrap ${negative ? 'text-red-300' : ''}`}>
-                              {formatArs(visibleValue)}
-                            </td>
-                          );
-                        })()}
+                        <td className={`px-4 py-3 text-right whitespace-nowrap ${negative ? 'text-red-300' : ''}`}>
+                          {formatArs(row.value)}
+                        </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap">
-                          {formatArs(data.months.reduce((acc, month) => {
-                            const current = buildDashboardRows(month).find((item) => item.label === row.label);
-                            return acc + (current?.value || 0);
-                          }, 0))}
+                          {formatArs(yearTotals[row.label] || 0)}
                         </td>
                       </tr>
                     );

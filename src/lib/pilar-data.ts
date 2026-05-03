@@ -71,8 +71,12 @@ const CAJA_BASE = [
   { concepto: 'Dolares (cantidad)', monto: 5870 },
 ] as const;
 
+const PILAR_FLUJO_DATA = flujoData as FlujoData;
+
+export const pilarData: FlujoData = PILAR_FLUJO_DATA;
+
 export function getFlujoData(): FlujoData {
-  return flujoData as FlujoData;
+  return pilarData;
 }
 
 export function getAvailableYears(data: FlujoData) {
@@ -92,6 +96,8 @@ export function getDashboardData(selectedYear?: number): PilarDashboardData {
 
   return {
     flujo,
+    source: 'json-static-fallback',
+    sourceError: null,
     selectedYear: activeYear,
     years,
     months,
@@ -107,7 +113,14 @@ function sumValues(values: number[]) {
   return values.reduce((acc, value) => acc + value, 0);
 }
 
-function buildProviderRows(summary: MonthlySummary[]): ProviderRow[] {
+function parseDebtDueDate(value: string | null) {
+  if (!value) return null;
+  const normalized = value.includes('T') ? value : `${value}T00:00:00`;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function buildProviderRows(summary: MonthlySummary[]): ProviderRow[] {
   const rows = PROVIDER_GROUPS.map(({ provider, income, expense }) => {
     const ingresos = sumValues(
       summary.map((month) => (month.incomeByCategory[income] || 0) + (month.pendingByCategory[income] || 0)),
@@ -121,7 +134,7 @@ function buildProviderRows(summary: MonthlySummary[]): ProviderRow[] {
   return rows.map((row) => ({ ...row, incidencia: row.diferencia / totalDiferencia }));
 }
 
-function buildProviderTotals(summary: MonthlySummary[]) {
+export function buildProviderTotals(summary: MonthlySummary[]) {
   const ventasTotales = sumValues(summary.map((month) => month.totals.income + month.totals.pending));
   const gastosOperativos = sumValues(summary.map((month) => month.totals.expense));
   const resultado = ventasTotales - gastosOperativos;
@@ -149,7 +162,7 @@ function buildCajaSummary(flujo: FlujoData, months: MonthlySummary[]): CajaSumma
   };
 }
 
-function buildNotifications(
+export function buildNotifications(
   months: MonthlySummary[],
   caja: CajaSummary,
   flujo: FlujoData,
@@ -167,8 +180,8 @@ function buildNotifications(
 
   const now = new Date();
   const upcomingDebt = flujo.debts.find((debt) => {
-    if (!debt.dueDate) return false;
-    const due = new Date(`${debt.dueDate}T00:00:00`);
+    const due = parseDebtDueDate(debt.dueDate);
+    if (!due) return false;
     const diffDays = (due.getTime() - now.getTime()) / 86400000;
     return diffDays >= 0 && diffDays <= 7;
   });
@@ -206,27 +219,4 @@ export function buildDashboardRows(month: MonthlySummary) {
     { kind: 'saldo', label: 'SALDO PERÍODO', value: month.totals.periodBalance },
     { kind: 'saldo', label: 'SALDO ACUMULADO', value: month.totals.accumulatedBalance },
   ] as const;
-}
-
-export function formatArs(value: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-export function formatUsd(value: number) {
-  return `U$D ${new Intl.NumberFormat('es-AR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)}`;
-}
-
-export function formatPercent(value: number) {
-  return `${new Intl.NumberFormat('es-AR', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  }).format(value * 100)}%`;
 }
