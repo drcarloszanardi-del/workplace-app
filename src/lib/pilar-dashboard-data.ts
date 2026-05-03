@@ -55,7 +55,10 @@ export function normalizePilarSourceError(reason: string, fallbackLabel = 'fallb
     lowered.includes('cannot find module') ||
     lowered.includes('module not found') ||
     lowered.includes('unexpected token') ||
-    lowered.includes('json')
+    lowered.includes('json') ||
+    lowered.includes('serialization') ||
+    lowered.includes('serialize') ||
+    lowered.includes('date')
   ) {
     return `El entorno serverless no pudo cargar datos serializables en runtime; se mantiene ${fallbackLabel}.`;
   }

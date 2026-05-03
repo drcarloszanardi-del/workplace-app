@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Jarvis Workplace',
-  description: 'Dashboard operativo de Jarvis',
+  title: 'Workplace | Tablero de actividad real',
+  description:
+    'Workplace con tablero de actividad real y semáforo de evidencia verificable para el foco APP-001.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

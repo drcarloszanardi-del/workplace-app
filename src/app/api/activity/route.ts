@@ -1,5 +1,7 @@
 import fs from 'fs/promises';
 import { NextResponse } from 'next/server';
+import activitySnapshot from '@/data/activity-snapshot.json';
+import flujoFondosSnapshot from '@/data/flujo-fondos.json';
 import { getMergedStatus } from '@/lib/workplace';
 
 export const runtime = 'nodejs';
@@ -10,14 +12,19 @@ const workspaceRoot = process.env.WORKPLACE_SOURCE_ROOT || '/Users/jarvis/.openc
 const statusPath = `${workspaceRoot}/CURRENT_STATUS.json`;
 const logPath = `${workspaceRoot}/ACTIVITY.log.jsonl`;
 const watchdogPath = `${workspaceRoot}/state/jarvis_watchdog/last_run.json`;
-const flujoFondosDataPath = `${process.cwd()}/src/data/flujo-fondos.json`;
-const activitySnapshotPath = `${process.cwd()}/src/data/activity-snapshot.json`;
+const codexConsultStatusPath = `${workspaceRoot}/state/codex_consult/status.json`;
+const appRoot = process.env.WORKPLACE_APP_ROOT || '/Users/jarvis/workplace-app';
+const pilarServerSourcePath = `${appRoot}/src/lib/pilar-server.ts`;
+const pilarDataSourcePath = `${appRoot}/src/lib/pilar-data.ts`;
 const staleMinutes = Number(process.env.JARVIS_ACTIVITY_STALE_MINUTES || 20);
 const adminArtifacts = new Set([
   'CURRENT_STATUS.json',
   'ACTIVITY.log.jsonl',
   'PRIORIDADES.md',
   'MEMORY.md',
+  'last_run.json',
+  'jarvis.log',
+  'jarvis.lock',
 ]);
 const adminEvidenceClasses = new Set([
   'decision',
@@ -34,9 +41,42 @@ const adminEvidenceClasses = new Set([
 ]);
 const verifiedEvidenceClasses = new Set(['build_ok', 'test_ok', 'commit', 'push', 'deploy', 'deliverable']);
 const pendingMaterialEvidenceClasses = new Set(['code_change', 'document_change', 'artifact']);
-const materialTokens = ['src/', 'app/', 'components/', 'lib/', '.tsx', '.ts', '.js', '.jsx', '.py', '.md', '.pdf', '.doc', '.docx', '.csv', '.xlsx'];
+const materialPathMarkers = ['/src/', '/app/', '/components/', '/lib/', '/public/', '/docs/'];
+const materialFileExtensions = ['.tsx', '.ts', '.js', '.jsx', '.py', '.md', '.html', '.css', '.pdf', '.doc', '.docx', '.csv', '.xlsx'];
 const materialJsonMarkers = ['/src/data/', '/data/', '/public/', '/docs/'];
 const administrativePathMarkers = ['/state/', '/logs/', '/memory/'];
+const app001ArtifactMarkers = [
+  '/src/app/activity/',
+  '/src/app/api/activity/',
+  '/src/app/layout.tsx',
+  '/src/lib/pilar-server.ts',
+  '/src/lib/pilar-data.ts',
+  '/src/lib/pilar-dashboard-data.ts',
+  '/src/data/flujo-fondos.json',
+  'src/app/activity/',
+  'src/app/api/activity/',
+  'src/app/layout.tsx',
+  'src/lib/pilar-server.ts',
+  'src/lib/pilar-data.ts',
+  'src/lib/pilar-dashboard-data.ts',
+  'src/data/flujo-fondos.json',
+];
+const codexPatchArtifactMarkers = [
+  '/src/lib/pilar-server.ts',
+  '/src/lib/pilar-data.ts',
+  '/src/lib/pilar-dashboard-data.ts',
+  '/src/data/flujo-fondos.json',
+  '/src/app/api/pilar/dashboard/route.ts',
+  '/src/app/dashboard/page.tsx',
+  '/src/app/page.tsx',
+  'src/lib/pilar-server.ts',
+  'src/lib/pilar-data.ts',
+  'src/lib/pilar-dashboard-data.ts',
+  'src/data/flujo-fondos.json',
+  'src/app/api/pilar/dashboard/route.ts',
+  'src/app/dashboard/page.tsx',
+  'src/app/page.tsx',
+];
 const administrativeNoteMarkers = [
   'solo hubo estado interno',
   'promesa',
@@ -53,7 +93,8 @@ function looksMaterialArtifact(raw?: string) {
   if (artifact.endsWith('.json')) {
     return materialJsonMarkers.some((marker) => artifact.includes(marker));
   }
-  return materialTokens.some((token) => artifact.includes(token));
+  return materialPathMarkers.some((marker) => artifact.includes(marker))
+    || materialFileExtensions.some((extension) => artifact.endsWith(extension));
 }
 
 function isAdministrativeArtifact(raw?: string) {
@@ -69,7 +110,31 @@ function noteLooksAdministrative(raw?: string) {
   return administrativeNoteMarkers.some((marker) => note.includes(marker));
 }
 
-function collectEvidenceSnapshot(events: any[]) {
+function looksLikeApp001Artifact(raw?: string) {
+  const artifact = String(raw || '').trim().toLowerCase();
+  if (!artifact) return false;
+  return app001ArtifactMarkers.some((marker) => artifact.includes(marker));
+}
+
+function eventLooksLikeWorkplaceFocus(event: any) {
+  const task = String(event?.task || '').trim().toUpperCase();
+  const artifact = String(event?.artifact || '').trim().toLowerCase();
+  return task.startsWith('APP-001') || looksLikeApp001Artifact(artifact);
+}
+
+function looksLikeCodexPatchArtifact(raw?: string) {
+  const artifact = String(raw || '').trim().toLowerCase();
+  if (!artifact) return false;
+  return codexPatchArtifactMarkers.some((marker) => artifact.includes(marker));
+}
+
+function collectEvidenceSnapshot(events: any[], options?: { app001Only?: boolean }) {
+  const app001Only = Boolean(options?.app001Only);
+  const visibleEvents = app001Only
+    ? events.filter((event) => eventLooksLikeWorkplaceFocus(event))
+    : events;
+  const sourceEvents = visibleEvents.length ? visibleEvents : events;
+
   const snapshot = {
     lastMaterialArtifact: null as string | null,
     lastMaterialAt: null as string | null,
@@ -89,7 +154,7 @@ function collectEvidenceSnapshot(events: any[]) {
     adminTrailAt: null as string | null,
   };
 
-  for (const event of events) {
+  for (const event of sourceEvents) {
     const artifact = String(event?.artifact || '').trim();
     const evidenceClass = String(event?.evidence_class || event?.event || '').toLowerCase();
     const note = String(event?.note || '').trim();
@@ -174,13 +239,50 @@ function safeParseJson(raw: string, fallback: any = null) {
   }
 }
 
+function inspectPilarServerSource(raw: string) {
+  const source = String(raw || '');
+  const usesFs = /from\s+['"]fs|from\s+['"]node:fs|require\(['"]fs|require\(['"]node:fs/.test(source);
+  const usesPath = /from\s+['"]path|from\s+['"]node:path|require\(['"]path|require\(['"]node:path/.test(source);
+  const usesProcessCwd = /process\.cwd\s*\(/.test(source);
+  const usesDynamicImport = /import\s*\(/.test(source);
+  const usesDynamicRequire = /require\s*\((?!['"](?:fs|node:fs|path|node:path|@supabase\/supabase-js)['"])/.test(source);
+  const usesJsonParse = /JSON\.parse\s*\(/.test(source);
+  const riskFlags = [
+    usesFs ? 'fs' : null,
+    usesPath ? 'path' : null,
+    usesProcessCwd ? 'process.cwd()' : null,
+    usesDynamicImport ? 'import()' : null,
+    usesDynamicRequire ? 'require() dinamico' : null,
+    usesJsonParse ? 'JSON.parse() runtime' : null,
+  ].filter(Boolean) as string[];
+  return {
+    sourceAvailable: Boolean(source.trim()),
+    usesFs,
+    usesPath,
+    usesProcessCwd,
+    usesDynamicImport,
+    usesDynamicRequire,
+    usesJsonParse,
+    riskFlags,
+    runtimeRiskDetected: riskFlags.length > 0,
+    dataAccessMode: riskFlags.length > 0 ? 'runtime_fragile' : 'env_supabase_only',
+  };
+}
+
+function inspectPilarDataSource(raw: string) {
+  const source = String(raw || '');
+  const hasStaticJsonImport = /import\s+\w+\s+from\s+['"][^'"]*flujo-fondos\.json['"]/.test(source);
+  const exportsGetter = /export\s+function\s+getFlujoData\s*\(/.test(source);
+  return {
+    sourceAvailable: Boolean(source.trim()),
+    hasStaticJsonImport,
+    exportsGetter,
+    bundleSafeDataSource: hasStaticJsonImport && exportsGetter,
+  };
+}
+
 async function readRepoSnapshot() {
-  try {
-    const raw = await fs.readFile(activitySnapshotPath, 'utf8');
-    return safeParseJson(raw, null);
-  } catch {
-    return null;
-  }
+  return activitySnapshot || null;
 }
 
 function parseDate(raw?: string) {
@@ -377,16 +479,21 @@ export async function GET() {
     const merged = await getMergedStatus();
     const active = Object.values(merged.frentes || {}).find((frente: any) => frente?.avanceAutonomo === 'si') as any;
 
-    const [statusRaw, logRaw, watchdogRaw, flujoFondosRaw] = await Promise.all([
+    const [statusRaw, logRaw, watchdogRaw, codexConsultRaw, pilarServerSourceRaw, pilarDataSourceRaw] = await Promise.all([
       fs.readFile(statusPath, 'utf8').catch(() => ''),
       fs.readFile(logPath, 'utf8').catch(() => ''),
       fs.readFile(watchdogPath, 'utf8').catch(() => ''),
-      fs.readFile(flujoFondosDataPath, 'utf8').catch(() => ''),
+      fs.readFile(codexConsultStatusPath, 'utf8').catch(() => ''),
+      fs.readFile(pilarServerSourcePath, 'utf8').catch(() => ''),
+      fs.readFile(pilarDataSourcePath, 'utf8').catch(() => ''),
     ]);
 
     const parsedStatus = safeParseJson(statusRaw, null);
     const watchdog = safeParseJson(watchdogRaw, null);
-    const flujoFondos = safeParseJson(flujoFondosRaw, null);
+    const codexConsult = safeParseJson(codexConsultRaw, null);
+    const pilarServerInspection = inspectPilarServerSource(pilarServerSourceRaw);
+    const pilarDataInspection = inspectPilarDataSource(pilarDataSourceRaw);
+    const flujoFondos = flujoFondosSnapshot;
     const lines = logRaw.split('\n').filter(Boolean);
     const snapshotEvents = lines.slice(-200).map((line) => {
       try {
@@ -450,17 +557,118 @@ export async function GET() {
             ts: merged.lastHeartbeat,
           },
         ];
-    const evidenceSnapshot = collectEvidenceSnapshot(snapshotEvents.length ? snapshotEvents : events);
+    const evidenceSnapshot = collectEvidenceSnapshot(snapshotEvents.length ? snapshotEvents : events, {
+      app001Only: true,
+    });
     const fallbackMaterialArtifact = looksMaterialArtifact(status?.last_artifact) ? status.last_artifact : null;
     const fallbackMaterialAt = fallbackMaterialArtifact ? status?.last_evidence_at || null : null;
     const datasetPendingSource = getDatasetPendingSource(flujoFondos);
+    const lastVisibleArtifact = String(
+      evidenceSnapshot.lastPendingArtifact
+        || evidenceSnapshot.lastMaterialArtifact
+        || watchdog?.artifact
+        || status?.last_artifact
+        || '',
+    ).trim();
+    const workplaceTaskVisible = String(status?.task || '').trim().toUpperCase().startsWith('APP-001')
+      || String(watchdog?.task || '').trim().toUpperCase().startsWith('APP-001');
+    const workplaceEventVisible = [...snapshotEvents, ...events].some((event) => eventLooksLikeWorkplaceFocus(event));
+    const workplaceFocusVisible = workplaceTaskVisible
+      || workplaceEventVisible
+      || looksLikeApp001Artifact(lastVisibleArtifact);
+
+    const truthBelongsToOtherFront = !workplaceFocusVisible
+      && (truth.truthSignal === 'SI' || truth.evidenceKind === 'pending_material');
+
+    const focusAwareTruth = truthBelongsToOtherFront
+      ? {
+          ...truth,
+          truthSignal: 'DUDOSO',
+          truthColor: 'yellow',
+          truthReason: truth.evidenceKind === 'pending_material'
+            ? 'hay cambio material reciente, pero pertenece a otro frente y no debe leerse como avance directo de APP-001'
+            : 'hay evidencia real reciente, pero pertenece a otro frente y no debe leerse como avance directo de APP-001',
+          validationGap: 'falta evidencia material reciente dentro de workplace-app para marcar SI en APP-001',
+        }
+      : truth;
+    const truthScope = truthBelongsToOtherFront
+      ? 'other_front'
+      : workplaceFocusVisible
+        ? 'app_001'
+        : 'global';
+    const otherFrontReason = (() => {
+      const visibleTask = String(status?.task || watchdog?.task || '').trim();
+      if (visibleTask && !visibleTask.toUpperCase().startsWith('APP-001')) {
+        return `La evidencia reciente existe, pero apunta a ${visibleTask} y el semáforo se degrada para no inflar APP-001.`;
+      }
+      if (lastVisibleArtifact && !looksLikeApp001Artifact(lastVisibleArtifact)) {
+        return `La evidencia reciente existe, pero el último artefacto visible (${lastVisibleArtifact}) no pertenece a workplace-app y el semáforo se degrada para no inflar APP-001.`;
+      }
+      return 'La evidencia reciente existe, pero apunta a otro frente y el semáforo se degrada para no inflar APP-001.';
+    })();
+    const truthScopeReason = truthBelongsToOtherFront
+      ? otherFrontReason
+      : workplaceFocusVisible
+        ? 'La evidencia reciente visible apunta al foco APP-001 o a un artefacto dentro de workplace-app.'
+        : 'No hay evidencia reciente suficiente para atribuir el semáforo a un frente material concreto.';
+    const evidenceFrontLabel = truthBelongsToOtherFront
+      ? 'otro frente'
+      : workplaceFocusVisible
+        ? 'APP-001 directo'
+        : 'global o incierto';
+    const codexConsultState = String(codexConsult?.state || '').trim();
+    const codexConsultAnswered = codexConsultState === 'answered';
+    const codexAnsweredAt = parseDate(String(codexConsult?.latest_answered_at || '').trim());
+    const latestWorkplaceEvidenceAt = parseDate(
+      String(
+        evidenceSnapshot.lastPendingAt
+          || evidenceSnapshot.lastMaterialAt
+          || status?.last_evidence_at
+          || '',
+      ).trim(),
+    );
+    const codexPatchConfirmedByInspection = Boolean(
+      codexConsultAnswered
+      && pilarServerInspection.sourceAvailable
+      && !pilarServerInspection.runtimeRiskDetected
+      && pilarDataInspection.sourceAvailable
+      && pilarDataInspection.bundleSafeDataSource,
+    );
+    const codexRelevantArtifactVisible = looksLikeCodexPatchArtifact(lastVisibleArtifact);
+    const codexHasPostAnswerEvidence = Boolean(
+      codexConsultAnswered
+      && codexAnsweredAt
+      && latestWorkplaceEvidenceAt
+      && latestWorkplaceEvidenceAt.getTime() >= codexAnsweredAt.getTime()
+      && codexRelevantArtifactVisible
+    );
+    const codexConsultApplied = Boolean(codexPatchConfirmedByInspection && codexHasPostAnswerEvidence);
+    const codexPatchInspectionSummary = codexPatchConfirmedByInspection
+      ? codexHasPostAnswerEvidence
+        ? 'src/lib/pilar-server.ts quedó sin carga runtime frágil, src/lib/pilar-data.ts usa import estático de flujo-fondos.json y ya hay evidencia local posterior a la respuesta'
+        : 'la inspección local confirma pilar-server bundle-safe + pilar-data con import estático, pero todavía falta evidencia local posterior a la respuesta'
+      : pilarServerInspection.sourceAvailable && pilarDataInspection.sourceAvailable
+        ? 'la inspección local todavía no confirma simultáneamente pilar-server bundle-safe + pilar-data con import estático'
+        : 'la activity API no pudo inspeccionar localmente pilar-server o pilar-data';
+    const codexConsultActionStatus = codexConsultAnswered
+      ? codexConsultApplied
+        ? `respuesta aplicada: ${codexPatchInspectionSummary}`
+        : codexPatchConfirmedByInspection
+          ? 'respuesta leida e inspección bundle-safe confirmada, pero falta evidencia local posterior a la respuesta'
+          : codexHasPostAnswerEvidence
+            ? 'hay evidencia local posterior a la respuesta, pero la inspección todavía no confirma que el parche bundle-safe quedó aplicado'
+            : 'respuesta leida, falta aplicar un paso chico verificable'
+      : codexConsultState === 'pending' || codexConsultState === 'processing'
+        ? 'consulta tecnica en curso'
+        : 'sin consulta activa';
 
     const payload = {
       ok: true,
       status: {
         ...status,
         derived_state: derivedState,
-        ...truth,
+        ...focusAwareTruth,
+        truth_signal_display: `Trabajando de verdad: ${focusAwareTruth.truthSignal}`,
         watchdog,
         watchdog_status: watchdog?.status || null,
         watchdog_ts: watchdog?.ts || null,
@@ -484,6 +692,8 @@ export async function GET() {
         data_source_workbook: flujoFondos?.sourceWorkbook || null,
         ...datasetPendingSource,
         build_needed: Boolean(status?.build_needed || watchdog?.build_needed),
+        deploy_blocked: Boolean(status?.deploy_blocked || watchdog?.deploy_blocked),
+        deploy_error: String(status?.deploy_error || watchdog?.deploy_error || '').trim() || null,
         last_material_artifact: evidenceSnapshot.lastMaterialArtifact || fallbackMaterialArtifact,
         last_material_at: evidenceSnapshot.lastMaterialAt || fallbackMaterialAt,
         last_pending_artifact: evidenceSnapshot.lastPendingArtifact || (pendingMaterialEvidenceClasses.has(String(status?.evidence_class || '').toLowerCase()) && looksMaterialArtifact(status?.last_artifact) ? status.last_artifact : null),
@@ -494,7 +704,52 @@ export async function GET() {
         last_deliverable_at: evidenceSnapshot.lastDeliverableAt || null,
         admin_trail: evidenceSnapshot.adminTrail || null,
         admin_trail_at: evidenceSnapshot.adminTrailAt || null,
-        validation_gap: truth.validationGap || null,
+        validation_gap: focusAwareTruth.validationGap || null,
+        workplace_focus_visible: workplaceFocusVisible,
+        workplace_focus_reason: workplaceFocusVisible
+          ? 'la evidencia visible apunta al foco APP-001 o a un artefacto dentro de workplace-app'
+          : truthBelongsToOtherFront
+            ? otherFrontReason
+            : 'no hay evidencia material reciente suficiente dentro de workplace-app para leer el semáforo como avance directo de APP-001',
+        truth_scope: truthScope,
+        truth_scope_reason: truthScopeReason,
+        evidence_front_label: evidenceFrontLabel,
+        codex_consult_state: codexConsultState || null,
+        codex_consult_answered_at: String(codexConsult?.latest_answered_at || '').trim() || null,
+        codex_consult_answer_path: String(codexConsult?.latest_answer_path || '').trim() || null,
+        codex_consult_instruction: String(codexConsult?.instruction_for_jarvis || '').trim() || null,
+        codex_consult_applied: codexConsultAnswered ? codexConsultApplied : null,
+        codex_consult_post_answer_evidence: codexConsultAnswered ? codexHasPostAnswerEvidence : null,
+        codex_consult_action_status: codexConsultActionStatus,
+        codex_patch_inspection_summary: codexConsultAnswered ? codexPatchInspectionSummary : null,
+        pilar_server_source_available: pilarServerInspection.sourceAvailable,
+        pilar_server_runtime_risk_detected: pilarServerInspection.runtimeRiskDetected,
+        pilar_server_runtime_risk_flags: pilarServerInspection.riskFlags,
+        pilar_server_data_access_mode: pilarServerInspection.dataAccessMode,
+        pilar_server_runtime_risk_summary: pilarServerInspection.sourceAvailable
+          ? pilarServerInspection.runtimeRiskDetected
+            ? `revisar src/lib/pilar-server.ts: hay señales de carga runtime frágil (${pilarServerInspection.riskFlags.join(', ')})`
+            : 'src/lib/pilar-server.ts quedó en modo bundle-safe: sin fs, path, process.cwd(), import() dinámico ni require() dinámico; solo env + Supabase'
+          : 'src/lib/pilar-server.ts no se pudo inspeccionar desde activity API',
+        pilar_data_bundle_safe: pilarDataInspection.sourceAvailable ? pilarDataInspection.bundleSafeDataSource : null,
+        pilar_data_source_summary: pilarDataInspection.sourceAvailable
+          ? pilarDataInspection.bundleSafeDataSource
+            ? 'src/lib/pilar-data.ts importa flujo-fondos.json de forma estática y expone getFlujoData()'
+            : 'revisar src/lib/pilar-data.ts: falta import estático de flujo-fondos.json o getter explícito'
+          : 'src/lib/pilar-data.ts no se pudo inspeccionar desde activity API',
+        pilar_vercel_bundle_verdict: (() => {
+          if (!pilarServerInspection.sourceAvailable || !pilarDataInspection.sourceAvailable) {
+            return 'sin veredicto visible';
+          }
+          if (pilarServerInspection.runtimeRiskDetected) {
+            return `riesgo runtime detectado en src/lib/pilar-server.ts (${pilarServerInspection.riskFlags.join(', ')})`;
+          }
+          if (!pilarDataInspection.bundleSafeDataSource) {
+            return 'pendiente revisar src/lib/pilar-data.ts para dejar import estático bundle-safe';
+          }
+          return 'ruta de datos bundle-safe visible para Vercel: env + Supabase en pilar-server y JSON estático en pilar-data';
+        })(),
+        stale_minutes: staleMinutes,
         evidence_age_minutes: evidenceAgeMinutes,
         evidence_freshness: (() => {
           if (evidenceAgeMinutes == null) return 'unknown';

@@ -35,9 +35,18 @@ export function getPilarLiveConfig() {
 
 export function getPilarEnvState() {
   const { supabaseUrl, serviceRoleKey } = getPilarLiveConfig();
+  const requiredGroups = [
+    ['NEXT_PUBLIC_PILAR_SUPABASE_URL', 'PILAR_SUPABASE_URL'],
+    ['PILAR_SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_ROLE_KEY'],
+  ];
+  const missingGroups = requiredGroups.filter(
+    (group) => !group.some((name) => cleanEnv(process.env[name])),
+  );
+
   return {
     hasSupabaseUrl: Boolean(supabaseUrl),
     hasServiceRoleKey: Boolean(serviceRoleKey),
+    missingGroups,
   };
 }
 

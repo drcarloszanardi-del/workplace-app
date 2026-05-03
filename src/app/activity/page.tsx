@@ -20,6 +20,10 @@ function fmtBoolean(value: unknown, yes = "si", no = "no") {
   return value ? yes : no;
 }
 
+function nowLabel() {
+  return new Date().toLocaleString("es-AR");
+}
+
 function isAdministrativeArtifact(raw: unknown) {
   const artifact = String(raw || "").trim().toLowerCase();
   if (!artifact) return false;
@@ -29,6 +33,9 @@ function isAdministrativeArtifact(raw: unknown) {
       "activity.log.jsonl",
       "prioridades.md",
       "memory.md",
+      "last_run.json",
+      "jarvis.log",
+      "jarvis.lock",
     ].some((blocked) => artifact.endsWith(blocked))
   ) {
     return true;
@@ -37,6 +44,53 @@ function isAdministrativeArtifact(raw: unknown) {
     artifact.includes("/state/") ||
     artifact.includes("/logs/") ||
     artifact.includes("/memory/")
+  );
+}
+
+function artifactKindLabel(raw: unknown) {
+  const artifact = String(raw || "").trim();
+  if (!artifact) return "sin artefacto";
+  return isAdministrativeArtifact(artifact)
+    ? "administrativo"
+    : "material o externo";
+}
+
+function isWorkplaceArtifact(raw: unknown) {
+  const artifact = String(raw || "").trim().toLowerCase();
+  if (!artifact) return false;
+  return [
+    "/src/app/activity/",
+    "/src/app/api/activity/",
+    "/src/app/layout.tsx",
+    "/src/lib/pilar-server.ts",
+    "/src/lib/pilar-data.ts",
+    "/src/lib/pilar-dashboard-data.ts",
+    "/src/data/flujo-fondos.json",
+    "src/app/activity/",
+    "src/app/api/activity/",
+    "src/app/layout.tsx",
+    "src/lib/pilar-server.ts",
+    "src/lib/pilar-data.ts",
+    "src/lib/pilar-dashboard-data.ts",
+    "src/data/flujo-fondos.json",
+  ].some((marker) => artifact.includes(marker));
+}
+
+function isWorkplaceFocus(status: Record<string, any>) {
+  if (typeof status.workplace_focus_visible === "boolean") {
+    return status.workplace_focus_visible;
+  }
+  const task = String(status.task || "").trim().toUpperCase();
+  const watchdogTask = String(status.watchdog?.task || "")
+    .trim()
+    .toUpperCase();
+  const artifact = String(
+    status.last_material_artifact || status.watchdog_artifact || status.last_artifact || "",
+  ).trim();
+  return (
+    task.startsWith("APP-001") ||
+    watchdogTask.startsWith("APP-001") ||
+    isWorkplaceArtifact(artifact)
   );
 }
 
@@ -153,6 +207,29 @@ function getPendingSummary(status: Record<string, any>) {
   return "sin cambio pendiente visible";
 }
 
+function getNextVerificationStep(status: Record<string, any>) {
+  const pendingArtifact = String(status.last_pending_artifact || "").trim();
+  const pendingLabel = pendingArtifact.split("/").pop() || pendingArtifact;
+
+  if (status.data_needs_regeneration) {
+    return "recalcular o regenerar src/data/flujo-fondos.json fuera del cron y dejar validación liviana";
+  }
+  if (pendingArtifact.endsWith(".tsx") || pendingArtifact.endsWith(".ts")) {
+    return pendingLabel
+      ? `correr una validación liviana de ${pendingLabel} y dejar commit visible`
+      : "correr una validación liviana del archivo tocado y dejar commit visible";
+  }
+  if (pendingArtifact.endsWith(".json")) {
+    return pendingLabel
+      ? `validar ${pendingLabel} y dejar trazabilidad clara de su regeneración o recálculo`
+      : "validar el JSON y dejar trazabilidad clara de su regeneración o recálculo";
+  }
+  if (pendingArtifact) {
+    return `dejar una prueba verificable de ${pendingLabel || "el artefacto pendiente"} (build, test, commit o entregable)`;
+  }
+  return "producir un cambio material verificable y luego validarlo";
+}
+
 function getEvidenceFreshnessSummary(status: Record<string, any>) {
   const age =
     typeof status.evidence_age_minutes === "number"
@@ -189,6 +266,10 @@ function getRealArtifactSummary(status: Record<string, any>) {
   return artifact || fmt(at);
 }
 
+function getTruthScopeReasonSummary(status: Record<string, any>) {
+  return String(status.truth_scope_reason || "").trim() || "sin motivo visible";
+}
+
 function getVerifiedSummary(status: Record<string, any>) {
   const artifact = String(status.last_verified_artifact || "").trim();
   const at = String(status.last_verified_at || "").trim();
@@ -222,6 +303,83 @@ function getDataSourceSummary(status: Record<string, any>) {
   if (source) return source;
   if (generatedAt) return fmt(generatedAt);
   return "sin dataset visible";
+}
+
+function getCodexConsultSummary(status: Record<string, any>) {
+  const state = String(status.codex_consult_state || "").trim();
+  if (!state) return "sin consulta visible";
+  if (state === "answered") {
+    const answeredAt = String(status.codex_consult_answered_at || "").trim();
+    return answeredAt ? `respondida · ${fmt(answeredAt)}` : "respondida";
+  }
+  if (state === "pending" || state === "processing") {
+    return `en curso: ${state}`;
+  }
+  return state;
+}
+
+function getCodexConsultInstructionSummary(status: Record<string, any>) {
+  const instruction = String(status.codex_consult_instruction || "").trim();
+  if (!instruction) return "sin instrucción visible";
+  return instruction;
+}
+
+function getCodexConsultActionSummary(status: Record<string, any>) {
+  const action = String(status.codex_consult_action_status || "").trim();
+  if (!action) return "sin acción visible";
+  return action;
+}
+
+function getCodexConsultAppliedSummary(status: Record<string, any>) {
+  if (status.codex_consult_applied === true) {
+    return "sí, ya quedó aplicado con evidencia local";
+  }
+  if (status.codex_consult_applied === false) {
+    return "no todavía, falta un paso chico verificable";
+  }
+  return "sin verificación visible";
+}
+
+function getCodexPostAnswerEvidenceSummary(status: Record<string, any>) {
+  if (status.codex_consult_post_answer_evidence === true) {
+    return "sí, hubo evidencia local posterior a la respuesta";
+  }
+  if (status.codex_consult_post_answer_evidence === false) {
+    return "no, todavía no aparece evidencia local posterior a la respuesta";
+  }
+  return "sin dato visible";
+}
+
+function getCodexConsultAnswerPathSummary(status: Record<string, any>) {
+  const answerPath = String(status.codex_consult_answer_path || "").trim();
+  if (!answerPath) return "sin respuesta visible";
+  return answerPath;
+}
+
+function getCodexPatchInspectionSummary(status: Record<string, any>) {
+  const summary = String(status.codex_patch_inspection_summary || "").trim();
+  if (!summary) return "sin inspección visible del parche sugerido por Codex";
+  return summary;
+}
+
+function getPilarServerRiskSummary(status: Record<string, any>) {
+  const summary = String(status.pilar_server_runtime_risk_summary || "").trim();
+  if (!summary) return "sin revisión visible de src/lib/pilar-server.ts";
+  return summary;
+}
+
+function getPilarServerAccessModeSummary(status: Record<string, any>) {
+  const mode = String(status.pilar_server_data_access_mode || "").trim();
+  if (!mode) return "sin modo visible";
+  if (mode === "env_supabase_only") return "env_supabase_only · bundle-safe";
+  if (mode === "runtime_fragile") return "runtime_fragile · revisar carga runtime";
+  return mode;
+}
+
+function getPilarDataSourceSummary(status: Record<string, any>) {
+  const summary = String(status.pilar_data_source_summary || "").trim();
+  if (!summary) return "sin revisión visible de src/lib/pilar-data.ts";
+  return summary;
 }
 
 function getDatasetFreshnessSummary(status: Record<string, any>) {
@@ -377,6 +535,25 @@ function getTruthSourceSummary(status: Record<string, any>) {
       : "heuristica local";
   const at = String(status.watchdog_ts || status.last_evidence_at || "").trim();
   return at ? `${source} · ${fmt(at)}` : source;
+}
+
+function getTruthScopeSummary(status: Record<string, any>) {
+  const scope = String(status.truth_scope || "").trim();
+  const reason = String(status.truth_scope_reason || "").trim();
+  const label = String(status.evidence_front_label || "").trim() ||
+    (scope === "app_001"
+      ? "APP-001 directo"
+      : scope === "other_front"
+        ? "otro frente"
+        : "global o incierto");
+  return reason ? `${label} · ${reason}` : label;
+}
+
+function getWorkplaceFocusSummary(status: Record<string, any>) {
+  const visible = isWorkplaceFocus(status);
+  const reason = String(status.workplace_focus_reason || "").trim();
+  if (reason) return `${visible ? "sí" : "no"} · ${reason}`;
+  return visible ? "sí" : "no";
 }
 
 function getNextOperationalStep(
@@ -625,9 +802,22 @@ export default function ActivityPage() {
   const recentEvents = Array.isArray(data.recentEvents)
     ? data.recentEvents
     : [];
-  const truthSignal = deriveTruthSignal(status, data.staleMinutes || 20);
+  const effectiveStaleMinutes =
+    typeof status.stale_minutes === "number" ? status.stale_minutes : data.staleMinutes || 20;
+  const truthSignal = deriveTruthSignal(status, effectiveStaleMinutes);
   const pendingSourceVerified = Boolean(status.data_pending_source_verified);
   const pendingSourceCommand = getPendingSourceCommand(status);
+  const workplaceFocusVisible = isWorkplaceFocus(status);
+  const eventRealitySummary = recentEvents.reduce(
+    (acc, event) => {
+      const reality = classifyEventReality(event);
+      if (reality.label === "SI") acc.real += 1;
+      else if (reality.label === "DUDOSO") acc.dubious += 1;
+      else acc.no += 1;
+      return acc;
+    },
+    { real: 0, dubious: 0, no: 0 },
+  );
 
   return (
     <main className="min-h-screen bg-[#07111f] px-6 py-8 text-slate-100">
@@ -643,6 +833,10 @@ export default function ActivityPage() {
             Esta vista muestra estado actual y eventos recientes derivados de
             evidencia local verificable, y separa evidencia material de
             actividad administrativa.
+          </p>
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-400">
+            CURRENT_STATUS, logs, memoria y prioridades no alcanzan por sí
+            solos para marcar SI.
           </p>
           <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-300">
             <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1">
@@ -679,7 +873,7 @@ export default function ActivityPage() {
           className={`mt-6 rounded-[28px] border p-6 ${truthSignal.tone}`}
         >
           <div className="text-xs font-semibold uppercase tracking-[0.25em]">
-            Trabajando de verdad: {truthSignal.label}
+            {String(status.truth_signal_display || `Trabajando de verdad: ${truthSignal.label}`)}
           </div>
           <div className="mt-2 text-xs text-current/80">
             Referencia del semáforo: Trabajando de verdad: SI / NO / DUDOSO
@@ -687,22 +881,39 @@ export default function ActivityPage() {
           <div className="mt-2 text-xs text-current/70">
             Esta vista se actualiza sola cada 30 segundos para reflejar evidencia local reciente.
           </div>
+          <div className="mt-2 text-xs text-current/70">
+            Última lectura local de esta pantalla: {nowLabel()}.
+          </div>
           <div className="mt-3 text-4xl font-semibold">{truthSignal.label}</div>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-current/90">
             {truthSignal.reason}
           </p>
           <div className="mt-4 flex flex-wrap gap-2 text-xs text-current/85">
             <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
-              Último artefacto real: {getRealArtifactSummary(status)}
+              Último artefacto material: {getRealArtifactSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Tipo del último artefacto visible:{" "}
+              {artifactKindLabel(
+                status.last_material_artifact ||
+                  status.watchdog_artifact ||
+                  status.last_artifact,
+              )}
             </span>
             <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
               Última prueba verificable: {getVerifiedSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Commit visible: {getCommitSummary(status)}
             </span>
             <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
               Último cambio pendiente: {getPendingSummary(status)}
             </span>
             <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
               Brecha actual: {truthSignal.validationGap}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Siguiente validación sugerida: {getNextVerificationStep(status)}
             </span>
             <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
               Última actividad administrativa:{" "}
@@ -712,7 +923,52 @@ export default function ActivityPage() {
               Fuente del semáforo: {getTruthSourceSummary(status)}
             </span>
             <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Frente de la última evidencia: {String(status.evidence_front_label || "sin clasificar")}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Alcance del semáforo: {getTruthScopeSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Motivo del alcance: {getTruthScopeReasonSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Antigüedad de la evidencia: {getEvidenceFreshnessSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Foco APP-001 visible: {getWorkplaceFocusSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
               Dataset visible: {getDataSourceSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Consulta Codex: {getCodexConsultSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Instrucción Codex: {getCodexConsultInstructionSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Acción sobre Codex: {getCodexConsultActionSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Aplicación de Codex: {getCodexConsultAppliedSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Evidencia posterior a Codex: {getCodexPostAnswerEvidenceSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Inspección del parche Codex: {getCodexPatchInspectionSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Respuesta Codex: {getCodexConsultAnswerPathSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Pilar server compartido: {getPilarServerRiskSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Modo de acceso Pilar: {getPilarServerAccessModeSummary(status)}
+            </span>
+            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
+              Pilar data estático: {getPilarDataSourceSummary(status)}
             </span>
             <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
               Antigüedad del dataset: {getDatasetFreshnessSummary(status)}
@@ -727,13 +983,42 @@ export default function ActivityPage() {
               Acción recomendada sobre saldo pendiente: {getPendingSourceAction(status)}
             </span>
             <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
-              Antigüedad de evidencia: {getEvidenceFreshnessSummary(status)}
-            </span>
-            <span className="rounded-full border border-current/20 bg-black/10 px-3 py-1">
               Build completo fuera de cron:{" "}
               {fmtBoolean(status.build_needed, "pendiente", "no requerido")}
             </span>
           </div>
+          {!workplaceFocusVisible ? (
+            <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-500/10 p-4 text-sm leading-6 text-amber-100">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-50/90">
+                La evidencia reciente visible no pertenece al foco APP-001
+              </div>
+              <div className="mt-2">
+                {String(status.workplace_focus_reason || "La evidencia visible reciente pertenece a otro frente y no debe leerse como avance directo de Workplace hasta volver a ver un archivo dentro de /Users/jarvis/workplace-app o una tarea APP-001.")}
+              </div>
+              <div className="mt-2">
+                El semáforo muestra actividad real de Jarvis, pero no debería leerse como avance directo de Workplace hasta volver a ver un archivo dentro de <code className="rounded bg-black/20 px-1 py-0.5 text-[11px]">/Users/jarvis/workplace-app</code> o una tarea APP-001.
+              </div>
+              <div className="mt-2 text-xs text-amber-50/80">
+                Tarea visible: {String(status.task || "sin tarea")} · artefacto visible: {String(status.last_material_artifact || status.watchdog_artifact || status.last_artifact || "sin artefacto")}
+              </div>
+            </div>
+          ) : null}
+          {status.watchdog_status === "ERROR" ? (
+            <div className="mt-5 rounded-2xl border border-rose-300/20 bg-rose-500/10 p-4 text-sm leading-6 text-rose-100">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-50/90">
+                El worker quedó con error reciente
+              </div>
+              <div className="mt-2">
+                El semáforo puede seguir mostrando evidencia material reciente, pero el cron necesita revisión porque el último ciclo cerró con error.
+              </div>
+              <div className="mt-2 text-xs text-rose-50/80">
+                Estado visible: {String(status.watchdog_status || "sin dato")} · razón: {String(status.watchdog_reason || status.watchdog?.reason || "sin detalle")}
+              </div>
+              <div className="mt-2 text-xs text-rose-50/80">
+                Último error / artefacto: {String(status.watchdog_artifact || status.last_artifact || "sin artefacto")} · {fmt(String(status.watchdog_ts || status.last_evidence_at || ""))}
+              </div>
+            </div>
+          ) : null}
           {!pendingSourceVerified ? (
             <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-500/10 p-4 text-sm leading-6 text-amber-100">
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-50/90">
@@ -760,6 +1045,35 @@ export default function ActivityPage() {
               ) : null}
             </div>
           ) : null}
+          {status.deploy_blocked ? (
+            <div className="mt-5 rounded-2xl border border-rose-300/20 bg-rose-500/10 p-4 text-sm leading-6 text-rose-100">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-50/90">
+                Deploy público bloqueado por credenciales
+              </div>
+              <div className="mt-2">
+                El build puede estar listo, pero hoy no existe una URL pública verificable porque falta una credencial válida de plataforma.
+              </div>
+              <div className="mt-2 text-xs text-rose-50/80">
+                Bloqueo actual: {String(status.deploy_error || "sin detalle visible")}
+              </div>
+              <div className="mt-2 text-xs text-rose-50/80">
+                Siguiente decisión operativa: definir plataforma destino y credencial válida para publicar sin login interactivo.
+              </div>
+              <div className="mt-3 rounded-xl border border-rose-200/15 bg-black/15 p-3 text-[11px] leading-5 text-rose-50/90">
+                <div className="uppercase tracking-[0.16em] text-rose-100/80">
+                  Mínimo para destrabar Vercel
+                </div>
+                <ul className="mt-2 list-disc space-y-1 pl-4">
+                  <li>Elegir plataforma destino, por ejemplo Vercel.</li>
+                  <li>Entregar una credencial válida con permiso para crear o linkear el proyecto.</li>
+                  <li>Evitar login interactivo dentro del flujo operativo.</li>
+                </ul>
+                <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-lg border border-rose-200/10 bg-black/20 p-2 font-mono text-[11px] leading-5 text-rose-50/95">
+{`VERCEL_TOKEN=... npx vercel --prod --yes --token "$VERCEL_TOKEN"`}
+                </pre>
+              </div>
+            </div>
+          ) : null}
           {truthSignal.label !== "SI" ? (
             <div className="mt-5 rounded-2xl border border-current/20 bg-black/15 p-4 text-sm text-current/95">
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-current/80">
@@ -771,6 +1085,9 @@ export default function ActivityPage() {
                 {truthSignal.pendingArtifact
                   ? `${truthSignal.pendingArtifact} · ${fmt(truthSignal.pendingAt)}`
                   : "sin cambio pendiente visible"}
+              </div>
+              <div className="mt-2 text-xs text-current/80">
+                Siguiente validación sugerida: {getNextVerificationStep(status)}
               </div>
               {status.data_needs_regeneration ? (
                 <div className="mt-3 rounded-2xl border border-amber-300/20 bg-amber-500/10 p-3 text-xs leading-5 text-amber-100">
@@ -807,7 +1124,11 @@ export default function ActivityPage() {
                     <code className="mx-1 rounded bg-black/20 px-1 py-0.5">
                       python3 scripts/build_flujo_data.py --recalc-pending-from-json
                     </code>
-                    ) sobre el JSON actual.
+                    ) para recalcular
+                    <code className="mx-1 rounded bg-black/20 px-1 py-0.5">
+                      metrics.totalPending
+                    </code>
+                    sobre el JSON actual, sin releer el Excel y dejando claro que la regeneración completa sigue pendiente.
                   </div>
                   <div className="mt-3 rounded-2xl border border-amber-200/15 bg-black/15 p-3 text-amber-50/90">
                     <div className="font-semibold uppercase tracking-[0.2em] text-amber-100/90">
@@ -824,7 +1145,7 @@ export default function ActivityPage() {
                       </li>
                       <li>
                         <code className="rounded bg-black/20 px-1 py-0.5">
-                          grep -n '"totalPending"' src/data/flujo-fondos.json
+                          grep -n &apos;&quot;totalPending&quot;&apos; src/data/flujo-fondos.json
                         </code>
                       </li>
                       <li>
@@ -979,6 +1300,10 @@ export default function ActivityPage() {
               status.watchdog_git_status_short ||
                 "sin cambios locales visibles",
             ],
+            ["Acción sobre consulta Codex", getCodexConsultActionSummary(status)],
+            ["Respuesta Codex aplicada", getCodexConsultAppliedSummary(status)],
+            ["Evidencia posterior a Codex", getCodexPostAnswerEvidenceSummary(status)],
+            ["Inspección del parche Codex", getCodexPatchInspectionSummary(status)],
             [
               "Actividad administrativa visible",
               status.admin_trail ||
@@ -1008,8 +1333,20 @@ export default function ActivityPage() {
               </h2>
             </div>
             <div className="text-xs text-slate-500">
-              stale después de {data.staleMinutes || 20} min sin evidencia
+              stale después de {effectiveStaleMinutes} min sin evidencia
             </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2 text-xs text-slate-300">
+            <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-emerald-100">
+              SI verificable: {eventRealitySummary.real}
+            </span>
+            <span className="rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-amber-100">
+              DUDOSO o pendiente: {eventRealitySummary.dubious}
+            </span>
+            <span className="rounded-full border border-rose-400/20 bg-rose-500/10 px-3 py-1 text-rose-100">
+              NO material: {eventRealitySummary.no}
+            </span>
           </div>
 
           <div className="mt-5 overflow-hidden rounded-2xl border border-white/10">
@@ -1043,7 +1380,10 @@ export default function ActivityPage() {
                           {String(event.task || "-")}
                         </td>
                         <td className="px-4 py-3">
-                          {String(event.artifact || "-")}
+                          <div>{String(event.artifact || "-")}</div>
+                          <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                            {artifactKindLabel(event.artifact)}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-slate-400">
                           {String(event.note || "-")}
