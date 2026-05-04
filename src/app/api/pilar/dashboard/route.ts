@@ -15,13 +15,13 @@ export async function GET(req: NextRequest) {
   const envReady = envState.hasSupabaseUrl && envState.hasServiceRoleKey;
   const envMissing = envState.missingGroups.map((group) => group.join('|')).join(',');
 
-  return NextResponse.json(payload, {
-    headers: {
-      'Cache-Control': 'no-store, max-age=0',
-      'X-Pilar-Data-Source': payload.source,
-      'X-Pilar-Source-Error': sourceError || 'none',
-      'X-Pilar-Env-Ready': envReady ? 'yes' : 'no',
-      'X-Pilar-Env-Missing': envMissing || 'none',
-    },
+  const headers = new Headers({
+    'Cache-Control': 'no-store, max-age=0',
+    'X-Pilar-Data-Source': payload.source || 'unknown',
+    'X-Pilar-Source-Error': sourceError || 'none',
+    'X-Pilar-Env-Ready': envReady ? 'yes' : 'no',
+    'X-Pilar-Env-Missing': envMissing || 'none',
   });
+
+  return NextResponse.json(payload, { headers });
 }
