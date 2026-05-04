@@ -30,10 +30,10 @@ function getProjectRoot() {
 function getEnv() {
   const root = getProjectRoot();
   const envPath = `${root}/.env.local`;
-  const env = loadEnv(envPath);
-  const baseUrl = env.NEXT_PUBLIC_PILAR_SUPABASE_URL?.replace(/\/$/, '') || env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
-  const serviceKey = env.PILAR_SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!baseUrl || !serviceKey) throw new Error('Faltan variables de Supabase en .env.local');
+  const fileEnv = fs.existsSync(envPath) ? loadEnv(envPath) : {};
+  const baseUrl = (process.env.NEXT_PUBLIC_PILAR_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || fileEnv.NEXT_PUBLIC_PILAR_SUPABASE_URL || fileEnv.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
+  const serviceKey = process.env.PILAR_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || fileEnv.PILAR_SUPABASE_SERVICE_ROLE_KEY || fileEnv.SUPABASE_SERVICE_ROLE_KEY;
+  if (!baseUrl || !serviceKey) throw new Error('Faltan variables de Supabase para la sincronización');
   return { root, baseUrl, serviceKey };
 }
 
