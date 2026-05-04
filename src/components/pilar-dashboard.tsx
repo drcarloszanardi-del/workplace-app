@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { buildDashboardRows } from '@/lib/pilar-data';
 import { formatArs, formatPercent, formatUsd } from '@/lib/pilar-format';
 import type { PilarDashboardData } from '@/lib/pilar-types';
@@ -44,6 +45,8 @@ function formatFallbackMessage(sourceError?: string | null) {
 }
 
 export function PilarDashboard({ data }: Props) {
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
   const visibleMonth = data.latestMonth;
   const visibleRows = visibleMonth ? buildDashboardRows(visibleMonth) : [];
   const generatedAtLabel = formatGeneratedAt(data.flujo.generatedAt);
@@ -53,6 +56,22 @@ export function PilarDashboard({ data }: Props) {
     }
     return acc;
   }, {});
+
+  async function runSync() {
+    setSyncing(true);
+    setSyncMessage('');
+    try {
+      const res = await fetch('/api/pilar/sync', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'No se pudo sincronizar');
+      setSyncMessage(`Sincronizado: ${json.transacciones} transacciones, ${json.deudas} deudas.`);
+      window.location.reload();
+    } catch (error) {
+      setSyncMessage(error instanceof Error ? error.message : 'Error al sincronizar');
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#0b1020] text-slate-100">
@@ -93,6 +112,17 @@ export function PilarDashboard({ data }: Props) {
                   {formatFallbackMessage(data.sourceError)}
                 </div>
               ) : null}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={runSync}
+                  disabled={syncing}
+                  className="rounded-xl border border-white/10 bg-sky-600 px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
+                >
+                  {syncing ? 'Sincronizando...' : 'Sincronizar ahora'}
+                </button>
+                {syncMessage ? <span className="text-xs text-slate-300">{syncMessage}</span> : null}
+              </div>
             </div>
           </div>
         </header>
