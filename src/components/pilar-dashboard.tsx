@@ -145,37 +145,40 @@ export function PilarDashboard({ data }: Props) {
           <Link href="/dashboard" className="rounded-full border border-white/10 bg-white/5 px-4 py-2">Vista mensual</Link>
         </div>
 
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_420px]">
+        <section className="grid gap-6 2xl:grid-cols-[minmax(0,1.45fr)_380px]">
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#121a31]">
-            <div className="overflow-x-auto">
-              <table className="min-w-[1200px] w-full text-sm">
-                <thead className="bg-[#0f1730] text-slate-300">
-                  <tr>
-                    <th className="sticky left-0 z-20 border-b border-white/10 bg-[#0f1730] px-4 py-3 text-left">Rubro</th>
-                    <th className="border-b border-white/10 px-4 py-3 text-right whitespace-nowrap">{visibleMonth?.label || 'Mes'}</th>
-                    <th className="border-b border-white/10 px-4 py-3 text-right">Acumulado año</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleRows.map((row) => {
-                    const isSection = row.kind === 'section';
-                    const isSaldo = row.kind === 'saldo';
-                    const negative = row.value < 0;
-                    return (
-                      <tr key={row.label} className={isSection || isSaldo ? 'bg-white/5 font-semibold' : 'border-t border-white/5'}>
-                        <td className="sticky left-0 z-10 bg-inherit px-4 py-3 text-left">{row.label}</td>
-                        <td className={`px-4 py-3 text-right whitespace-nowrap ${negative ? 'text-red-300' : ''}`}>
-                          {formatArs(row.value)}
-                        </td>
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
-                          {formatArs(yearTotals[row.label] || 0)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <table className="w-full table-fixed text-xs sm:text-sm">
+              <colgroup>
+                <col className="w-[46%]" />
+                <col className="w-[27%]" />
+                <col className="w-[27%]" />
+              </colgroup>
+              <thead className="bg-[#0f1730] text-slate-300">
+                <tr>
+                  <th className="border-b border-white/10 px-3 py-3 text-left sm:px-4">Rubro</th>
+                  <th className="border-b border-white/10 px-3 py-3 text-right whitespace-nowrap sm:px-4">{visibleMonth?.label || 'Mes'}</th>
+                  <th className="border-b border-white/10 px-3 py-3 text-right sm:px-4">Acumulado año</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRows.map((row) => {
+                  const isSection = row.kind === 'section';
+                  const isSaldo = row.kind === 'saldo';
+                  const negative = row.value < 0;
+                  return (
+                    <tr key={row.label} className={isSection || isSaldo ? 'bg-white/5 font-semibold' : 'border-t border-white/5'}>
+                      <td className="px-3 py-3 text-left leading-snug sm:px-4">{row.label}</td>
+                      <td className={`px-3 py-3 text-right whitespace-nowrap sm:px-4 ${negative ? 'text-red-300' : ''}`}>
+                        {formatArs(row.value)}
+                      </td>
+                      <td className="px-3 py-3 text-right whitespace-nowrap sm:px-4">
+                        {formatArs(yearTotals[row.label] || 0)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
 
           <aside className="space-y-6">

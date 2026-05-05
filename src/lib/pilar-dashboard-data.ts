@@ -1,5 +1,5 @@
 import 'server-only';
-import { buildNotifications, buildProviderRows, buildProviderTotals, getDashboardData, getAvailableYears } from '@/lib/pilar-data';
+import { buildNotifications, buildProviderRows, buildProviderTotals, filterFutureMonths, getDashboardData, getAvailableYears } from '@/lib/pilar-data';
 import { getPilarAdminClient, getPilarEnvState } from '@/lib/pilar-server';
 import type { PilarDashboardData } from '@/lib/pilar-types';
 
@@ -37,6 +37,11 @@ function normalizeDateText(value: unknown) {
   if (typeof normalizedValue !== 'string') return null;
   const match = normalizedValue.match(/^\d{4}-\d{2}-\d{2}/);
   return match ? match[0] : normalizedValue;
+}
+
+function normalizeSecondaryMonthValue(date: string | null, value: unknown) {
+  if (!date) return null;
+  return toOptionalNumber(value);
 }
 
 export function normalizePilarSourceError(reason: string, fallbackLabel = 'fallback JSON estático') {
@@ -190,7 +195,7 @@ function buildDashboardFromSupabase(
     }
   }
 
-  const allMonths = Array.from(grouped.values()).sort((a, b) => a.key.localeCompare(b.key));
+  const allMonths = filterFutureMonths(Array.from(grouped.values()).sort((a, b) => a.key.localeCompare(b.key)));
   let running = 0;
   for (const month of allMonths) {
     month.initialBalance = running;
@@ -247,8 +252,8 @@ function buildDashboardFromSupabase(
           collection1: toAmount(item.cobro_1),
           pending: toAmount(item.pendiente),
           date2: normalizeDateText(item.fecha_2),
-          month2: toOptionalNumber(item.mes_2),
-          year2: toOptionalNumber(item.anio_2),
+          month2: normalizeSecondaryMonthValue(normalizeDateText(item.fecha_2), item.mes_2),
+          year2: normalizeSecondaryMonthValue(normalizeDateText(item.fecha_2), item.anio_2),
           collection2: toAmount(item.cobro_2),
           totalCollection: toAmount(item.cobro_total),
           balance: toAmount(item.saldo),

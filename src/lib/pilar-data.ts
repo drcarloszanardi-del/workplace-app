@@ -83,14 +83,32 @@ export function getAvailableYears(data: FlujoData) {
   return [...new Set(data.summary.map((item) => item.year))].sort((a, b) => b - a);
 }
 
+function getCurrentMonthKey() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === 'year')?.value || '1900';
+  const month = parts.find((part) => part.type === 'month')?.value || '01';
+  return `${year}-${month}`;
+}
+
+export function filterFutureMonths<T extends { key: string }>(months: T[]) {
+  const currentMonthKey = getCurrentMonthKey();
+  const visible = months.filter((item) => item.key <= currentMonthKey);
+  return visible.length ? visible : months;
+}
+
 export function getDashboardData(selectedYear?: number): PilarDashboardData {
   const flujo = getFlujoData();
-  const years = getAvailableYears(flujo);
+  const visibleSummary = filterFutureMonths(flujo.summary);
+  const years = [...new Set(visibleSummary.map((item) => item.year))].sort((a, b) => b - a);
   const activeYear = selectedYear && years.includes(selectedYear) ? selectedYear : years[0];
-  const months = flujo.summary.filter((item) => item.year === activeYear);
+  const months = visibleSummary.filter((item) => item.year === activeYear);
   const latestMonth = months[months.length - 1] || null;
-  const providerRows = buildProviderRows(flujo.summary);
-  const providerTotals = buildProviderTotals(flujo.summary);
+  const providerRows = buildProviderRows(months);
+  const providerTotals = buildProviderTotals(months);
   const caja = buildCajaSummary(flujo, months);
   const notifications = buildNotifications(months, caja, flujo);
 

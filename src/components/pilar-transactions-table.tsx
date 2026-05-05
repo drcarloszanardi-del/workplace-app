@@ -102,8 +102,8 @@ export function PilarTransactionsTable({ records }: { records: FlujoRecordPrevie
             collection1: Number(response.data[0]?.cobro_1 || cobro1),
             pending: Number(response.data[0]?.pendiente || pendiente),
             date2: response.data[0]?.fecha_2 || null,
-            month2: Number(response.data[0]?.mes_2 || 0),
-            year2: Number(response.data[0]?.anio_2 || 0),
+            month2: response.data[0]?.fecha_2 ? Number(response.data[0]?.mes_2 || 0) : null,
+            year2: response.data[0]?.fecha_2 ? Number(response.data[0]?.anio_2 || 0) : null,
             collection2: Number(response.data[0]?.cobro_2 || cobro2),
             totalCollection: Number(response.data[0]?.cobro_total || cobroTotal),
             balance: Number(response.data[0]?.saldo || pendiente),
@@ -143,8 +143,30 @@ export function PilarTransactionsTable({ records }: { records: FlujoRecordPrevie
           {message ? <div className="text-xs text-slate-300">{message}</div> : null}
         </div>
       </form>
-      <div className="overflow-x-auto">
-        <table className="min-w-[1280px] w-full text-sm">
+      <div className="grid gap-3 p-4 2xl:hidden">
+        {sortedItems.map((record) => (
+          <article key={record.id} className="rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-slate-200">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{record.date || '-'}</div>
+                <div className="mt-1 font-medium text-white">{record.product || '-'}</div>
+                <div className="mt-1 text-slate-400">{record.client || 'Sin cliente'} · {record.category || 'Sin rubro'}</div>
+              </div>
+              <button type="button" onClick={() => fillFormFromRecord(record)} className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs text-white">Editar</button>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-xs sm:text-sm">
+              <div><div className="text-slate-500">Presupuesto</div><div className="mt-1 whitespace-nowrap">{formatArs(record.budget || 0)}</div></div>
+              <div><div className="text-slate-500">Cobro 1</div><div className="mt-1 whitespace-nowrap">{formatArs(record.collection1 || 0)}</div></div>
+              <div><div className="text-slate-500">Cobro 2</div><div className="mt-1 whitespace-nowrap">{formatArs(record.collection2 || 0)}</div></div>
+              <div><div className="text-slate-500">Cobro total</div><div className="mt-1 whitespace-nowrap">{formatArs(record.totalCollection || 0)}</div></div>
+              <div><div className="text-slate-500">Saldo</div><div className={`mt-1 whitespace-nowrap ${(record.balance || 0) > 0 ? 'text-amber-300' : 'text-white'}`}>{formatArs(record.balance || 0)}</div></div>
+              <div><div className="text-slate-500">Gastos</div><div className="mt-1 whitespace-nowrap">{formatArs(record.expense || 0)}</div></div>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto 2xl:block">
+        <table className="w-full text-sm">
           <thead className="bg-[#0f1730] text-slate-300">
             <tr>
               <th className="px-4 py-3 text-left">Fecha</th>
