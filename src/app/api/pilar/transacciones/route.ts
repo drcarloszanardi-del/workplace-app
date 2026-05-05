@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { getPilarAdminClient } from '@/lib/pilar-server';
 import { addFallbackTransaction, readFallbackStore } from '@/lib/pilar-fallback-store';
 
@@ -16,6 +17,15 @@ function filterFallbackRows(rows: Array<Record<string, unknown>>, req: NextReque
     if (moneda && moneda !== 'ARS') return false;
     return true;
   });
+}
+
+async function resolveRubroId(supabase: SupabaseClient, body: Record<string, unknown>) {
+  if (body.rubro_id) return String(body.rubro_id);
+  const category = String(body.categoria || body.rubro_nombre || '').trim();
+  if (!category) return null;
+  const { data, error } = await supabase.from('pilar_rubros').select('id').eq('nombre', category).maybeSingle();
+  if (error) throw error;
+  return data?.id || null;
 }
 
 export async function GET(req: NextRequest) {
@@ -51,6 +61,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   try {
     const supabase = getPilarAdminClient();
+    const rubroId = await resolveRubroId(supabase, body as Record<string, unknown>);
     const payload = {
       fecha: body.fecha,
       mes: Number(body.mes || 0),
@@ -70,10 +81,10 @@ export async function POST(req: NextRequest) {
       gastos: Number(body.gastos || 0),
       moneda: body.moneda || 'ARS',
       monto_usd: Number(body.monto_usd || 0),
-      rubro_id: body.rubro_id || null,
-      numero: body.numero || null,
+      rubro_id: rubroId,
+      ...(body.numero != null ? { numero: Number(body.numero) } : {}),
     };
-    const { data, error } = await supabase.from('pilar_transacciones').insert(payload).select();
+    const { data, error } = await supabase.from('pilar_transacciones').insert(payload).select('*, pilar_rubros(nombre, tipo, grupo_proveedor)');
     if (error) throw error;
     return NextResponse.json({ ok: true, mode: 'supabase', data }, { status: 201 });
   } catch (error) {
